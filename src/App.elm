@@ -184,7 +184,7 @@ renderIngredients ingredient =
         [ td [ align "left" ] [ text ingredient.name ]
         , td [ align "left" ] [ text ingredient.qty ]
         , td [ align "left" ] [ text ingredient.unit ]
-        , td [ align "left" ] [ button [ onClick (EditIngredient ingredient), size 5 ] [ text "edit" ] ]
+        , td [ align "left" ] [ button [ onClick (EditIngredient ingredient) ] [ text "edit" ] ]
         , td [ align "left" ] [ button [ onClick (RemoveIngredient ingredient) ] [ text "remove" ] ]
         ]
 
@@ -198,8 +198,9 @@ getRandomDinner : Cmd Msg
 getRandomDinner =
     let
         url =
-            "http://middagbackend.azurewebsites.net/API/MiddagsApp/GetRandomDinner"
+            "http://localhost:49203/API/MiddagsApp/GetRandomDinner"
 
+        --"http://middagbackend.azurewebsites.net/API/MiddagsApp/GetRandomDinner"
         request =
             Http.get url dinnerDecoder
     in
@@ -222,6 +223,16 @@ dinnerEncoder model =
         , ( "url", Encode.string model.dinner.url )
         , ( "tags", Encode.string model.dinner.tags )
         , ( "portions", Encode.string model.dinner.portions )
+        , ( "ingredients", Encode.list <| List.map ingredientEncoder model.ingredients )
+        ]
+
+
+ingredientEncoder : Ingredient -> Encode.Value
+ingredientEncoder ingredient =
+    Encode.object
+        [ ( "name", Encode.string ingredient.name )
+        , ( "qty", Encode.string ingredient.qty )
+        , ( "unit", Encode.string ingredient.unit )
         ]
 
 
