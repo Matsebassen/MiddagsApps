@@ -6,10 +6,14 @@ import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import Http exposing (..)
 import Material
+import Material.Elevation as Elevation
+import Material.Table as Table
 import Material.Button as Button
+import Material.Card as Card
 import Material.Options as Options exposing (css)
 import Material.Icon as Icon
 import Material.Textfield as Textfield
+import Material.Color as Color
 
 
 --MODEL
@@ -20,6 +24,7 @@ type alias Model =
     , dinner : Dinner
     , dinners : List Dinner
     , searchText : String
+    , raised : Int
     , mdl : Material.Model
     }
 
@@ -34,7 +39,7 @@ type alias Mdl =
 
 init : Model
 init =
-    Model "" (Dinner "" "" "" "") [] "" Material.model
+    Model "" (Dinner "" "" "" "") [] "" -1 Material.model
 
 
 
@@ -47,6 +52,7 @@ type Msg
     | SearchResults (Result Http.Error (List Dinner))
     | SearchText String
     | SearchDinners
+    | Raise Int
     | Mdl (Material.Msg Msg)
 
 
@@ -102,6 +108,9 @@ update msg model =
         SearchDinners ->
             ( model, searchDinners model.searchText SearchResults )
 
+        Raise k ->
+            { model | raised = k } ! []
+
         Mdl msg_ ->
             Material.update Mdl msg_ model
 
@@ -115,32 +124,91 @@ view model =
         , materialButton model GetRandomDinner "I feel lucky" 2
         , div []
             [ dinnerTable model ]
+        , cardView model "http://caspario.com/tanker2010/mars/cowboymat.jpg" "Cowboygryte" "Cowboygryte er nam nam"
         ]
 
 
 dinnerTable : Model -> Html Msg
 dinnerTable model =
-    table [ align "center" ]
-        [ thead []
-            [ tr []
-                [ th [] [ text "Name" ]
-                , th [] [ text "Url" ]
-                , th [] [ text "Tags" ]
-                , th [] [ text "Portions" ]
+    Table.table [ css "align" "center" ]
+        [ Table.thead []
+            [ Table.tr []
+                [ Table.th [] [ text "Name" ]
+                , Table.th [] [ text "Url" ]
+                , Table.th [] [ text "Tags" ]
+                , Table.th [] [ text "Portions" ]
                 ]
             ]
-        , tbody [] (List.map renderDinners model.dinners)
+        , Table.tbody [] (List.map renderDinners model.dinners)
         ]
 
 
 renderDinners : Dinner -> Html Msg
 renderDinners dinner =
-    tr []
-        [ td [ align "left" ] [ text dinner.name ]
-        , td [ align "left" ] [ text dinner.url ]
-        , td [ align "left" ] [ text dinner.tags ]
-        , td [ align "left" ] [ text dinner.portions ]
+    Table.tr []
+        [ Table.td [ css "align" "left" ] [ text dinner.name ]
+        , Table.td [ css "align" "left" ] [ text dinner.url ]
+        , Table.td [ css "align" "left" ] [ text dinner.tags ]
+        , Table.td [ css "align" "left" ] [ text dinner.portions ]
         ]
+
+
+dynamic : Int -> Msg -> Model -> Options.Style Msg
+dynamic k showcode model =
+    [ if model.raised == k then
+        Elevation.e8
+      else
+        Elevation.e2
+    , Elevation.transition 250
+    , Options.onMouseEnter (Raise k)
+    , Options.onMouseLeave (Raise -1)
+    , Options.onClick showcode
+    ]
+        |> Options.many
+
+
+cardView : Model -> String -> String -> String -> Html Msg
+cardView model picUrl header desc =
+    Card.view
+        [ css "width" "256px"
+        , css "padding" "20 20 20 20"
+        ]
+        [ Card.title
+            [ css "background" ("url('" ++ picUrl ++ "') center / cover")
+            , css "height" "256px"
+            , css "padding" "0"
+              -- Clear default padding to encompass scrim
+            ]
+            [ Card.head
+                [ white
+                , Options.scrim 0.75
+                , css "padding" "16px"
+                  -- Restore default padding inside scrim
+                , css "width" "100%"
+                ]
+                [ text header ]
+            ]
+        , Card.text []
+            [ text desc ]
+        , Card.actions
+            [ Card.border ]
+            [ Button.render Mdl
+                [ 1, 0 ]
+                model.mdl
+                [ Button.ripple, Button.accent ]
+                [ text "Ingredients" ]
+            , Button.render Mdl
+                [ 1, 1 ]
+                model.mdl
+                [ Button.ripple, Button.accent ]
+                [ text "Website" ]
+            ]
+        ]
+
+
+white : Options.Property c m
+white =
+    Color.text Color.white
 
 
 materialButton : Model -> Msg -> String -> Int -> Html Msg
