@@ -1,12 +1,27 @@
 module ServerApi exposing (..)
 
 import Json.Decode as JsonD
-import Json.Encode as JsonE
-import Http
+import Json.Encode as Encode
+import Http exposing (..)
 
 
-getRandomDinner : Cmd Msg
-getRandomDinner =
+type alias Dinner =
+    { name : String
+    , url : String
+    , tags : String
+    , portions : String
+    }
+
+
+type alias Ingredient =
+    { name : String
+    , qty : String
+    , unit : String
+    }
+
+
+getRandomDinner : (Result Http.Error Dinner -> msg) -> Cmd msg
+getRandomDinner msg =
     let
         url =
             "http://localhost:49203/API/MiddagsApp/GetRandomDinner"
@@ -15,7 +30,31 @@ getRandomDinner =
         request =
             Http.get url dinnerDecoder
     in
-        Http.send NewDinner request
+        Http.send msg request
+
+
+addNewDinner : Dinner -> List Ingredient -> (Result Http.Error String -> msg) -> Cmd msg
+addNewDinner dinner ingredients msg =
+    let
+        url =
+            "http://localhost:49203/API/MiddagsApp/AddNewDinner"
+
+        request =
+            Http.post url (Http.jsonBody (dinnerEncoder dinner ingredients)) jsonResponseDecoder
+    in
+        Http.send msg request
+
+
+searchDinners : String -> (Result Http.Error (List Dinner) -> msg) -> Cmd msg
+searchDinners searchText msg =
+    let
+        url =
+            "http://localhost:49203/API/MiddagsApp/SearchDinner"
+
+        request =
+            Http.post url (Http.jsonBody (Encode.string searchText)) (JsonD.list dinnerDecoder)
+    in
+        Http.send msg request
 
 
 dinnerDecoder : JsonD.Decoder Dinner
@@ -35,14 +74,14 @@ ingredientDecoder =
         (JsonD.field "unit" JsonD.string)
 
 
-dinnerEncoder : Model -> Encode.Value
-dinnerEncoder model =
+dinnerEncoder : Dinner -> List Ingredient -> Encode.Value
+dinnerEncoder dinner ingredients =
     Encode.object
-        [ ( "name", Encode.string model.dinner.name )
-        , ( "url", Encode.string model.dinner.url )
-        , ( "tags", Encode.string model.dinner.tags )
-        , ( "portions", Encode.string model.dinner.portions )
-        , ( "ingredients", Encode.list <| List.map ingredientEncoder model.ingredients )
+        [ ( "name", Encode.string dinner.name )
+        , ( "url", Encode.string dinner.url )
+        , ( "tags", Encode.string dinner.tags )
+        , ( "portions", Encode.string dinner.portions )
+        , ( "ingredients", Encode.list <| List.map ingredientEncoder ingredients )
         ]
 
 
@@ -58,15 +97,3 @@ ingredientEncoder ingredient =
 jsonResponseDecoder : JsonD.Decoder String
 jsonResponseDecoder =
     JsonD.string
-
-
-addNewDinner : Model -> Cmd Msg
-addNewDinner model =
-    let
-        url =
-            "http://localhost:49203/API/MiddagsApp/AddNewDinner"
-
-        request =
-            Http.post url (Http.jsonBody (dinnerEncoder model)) jsonResponseDecoder
-    in
-        Http.send JsonResponse request
