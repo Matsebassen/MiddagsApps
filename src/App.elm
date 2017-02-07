@@ -8,6 +8,13 @@ import Html.Attributes exposing (..)
 import Http exposing (..)
 import Json.Decode as JsonD
 import Json.Encode as Encode exposing (..)
+import Material
+import Material.Button as Button
+import Material.Options as Options exposing (css)
+import Material.Icon as Icon
+import Material.Textfield as Textfield
+import Material.Layout as Layout
+import Material.Color as Color
 
 
 type alias Model =
@@ -15,6 +22,7 @@ type alias Model =
     , dinner : Dinner
     , ingredients : List Ingredient
     , currentIngredient : Ingredient
+    , mdl : Material.Model
     }
 
 
@@ -33,9 +41,13 @@ type alias Ingredient =
     }
 
 
+type alias Mdl =
+    Material.Model
+
+
 init : String -> ( Model, Cmd Msg )
 init blabla =
-    ( Model "Mats lærer elm" (Dinner "" "" "" "") [] (Ingredient "" "" ""), Cmd.none )
+    ( Model "Mats lærer elm" (Dinner "" "" "" "") [] (Ingredient "" "" "") Material.model, Cmd.none )
 
 
 
@@ -46,6 +58,7 @@ type Msg
     = GetRandomDinner
     | NewDinner (Result Http.Error Dinner)
     | AddDinner
+    | JsonResponse (Result Http.Error String)
     | DinnerName String
     | DinnerUrl String
     | DinnerTags String
@@ -56,6 +69,7 @@ type Msg
     | AddIngredient
     | RemoveIngredient Ingredient
     | EditIngredient Ingredient
+    | Mdl (Material.Msg Msg)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -66,6 +80,26 @@ update msg model =
 
         AddDinner ->
             ( model, addNewDinner model )
+
+        JsonResponse (Ok response) ->
+            ( Model response (Dinner "" "" "" "") [] (Ingredient "" "" "") model.mdl, Cmd.none )
+
+        JsonResponse (Err error) ->
+            case error of
+                Http.BadUrl badUrlMsg ->
+                    ( { model | title = "That was a shitty url. Message: " ++ badUrlMsg }, Cmd.none )
+
+                Http.Timeout ->
+                    ( { model | title = "The request timed out" }, Cmd.none )
+
+                Http.NetworkError ->
+                    ( { model | title = "There seems to be a network error, Sir" }, Cmd.none )
+
+                Http.BadStatus badResponse ->
+                    ( { model | title = "Bad status. Does that make sense to you? " }, Cmd.none )
+
+                Http.BadPayload debugMessage badResponse ->
+                    ( { model | title = "My payload is bad. Really bad. Also, I got a message for you: " ++ debugMessage }, Cmd.none )
 
         DinnerName newName ->
             ( { model | dinner = setDinnerName newName model.dinner }, Cmd.none )
@@ -112,10 +146,13 @@ update msg model =
                     ( { model | title = "There seems to be a network error, Sir" }, Cmd.none )
 
                 Http.BadStatus badResponse ->
-                    ( { model | title = "Bad status. Does that make sense to you?" }, Cmd.none )
+                    ( { model | title = "Bad status. Does that make sense to you?" ++ toString badResponse }, Cmd.none )
 
                 Http.BadPayload debugMessage badResponse ->
                     ( { model | title = "My payload is bad. Really bad. Also, I got a message for you: " ++ debugMessage }, Cmd.none )
+
+        Mdl msg_ ->
+            Material.update Mdl msg_ model
 
 
 
@@ -133,15 +170,29 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
+    --Material.Scheme.topWithScheme Color.Teal Color.LightGreen <|
+    Layout.render Mdl
+        model.mdl
+        [ Layout.fixedHeader
+        ]
+        { header = [ h2 [ style [ ( "padding", "0rem" ) ] ] [ text "Middag" ] ]
+        , drawer = []
+        , tabs = ( [ text "Get Random Dinner", text "Add Dinner" ], [ Color.background (Color.color Color.Teal Color.S400) ] )
+        , main = [ viewBody model ]
+        }
+
+
+viewBody : Model -> Html Msg
+viewBody model =
     div []
         [ h1 [] [ text model.title ]
         , label [] [ text model.dinner.name ]
         , br [] []
         , text model.dinner.url
-        , div [] [ button [ onClick GetRandomDinner ] [ text "Get Random Dinner" ] ]
+        , materialButton model GetRandomDinner "Get Random Dinner" 1
         , br [] []
         , dinnerView model
-        , div [] [ button [ onClick AddDinner ] [ text "Add dinner" ] ]
+        , materialButton model AddDinner "Add dinner" 2
         , br [] []
         , table [ align "center" ]
             [ thead []
@@ -155,26 +206,26 @@ view model =
             , tbody [] (List.map renderIngredients model.ingredients)
             ]
         , ingredientView model
-        , div [] [ button [ onClick AddIngredient ] [ text "Add ingredient" ] ]
+        , div [] [ Button.render Mdl [ 0 ] model.mdl [ Button.minifab, Button.colored, Options.onClick AddIngredient ] [ Icon.i "add" ] ]
         ]
 
 
 dinnerView : Model -> Html Msg
 dinnerView model =
     div []
-        [ dinnerInput "Name of dinner" DinnerName model model.dinner.name
-        , dinnerInput "Portions" DinnerPortions model model.dinner.portions
-        , dinnerInput "Tags" DinnerTags model model.dinner.tags
-        , dinnerInput "Url (optional)" DinnerUrl model model.dinner.url
+        [ dinnerInputMaterial "Name of dinner" DinnerName model model.dinner.name 1
+        , dinnerInputMaterial "Portions" DinnerPortions model model.dinner.portions 2
+        , dinnerInputMaterial "Tags" DinnerTags model model.dinner.tags 3
+        , dinnerInputMaterial "Url (optional)" DinnerUrl model model.dinner.url 4
         ]
 
 
 ingredientView : Model -> Html Msg
 ingredientView model =
     div []
-        [ dinnerInput "Name of Ingredient" IngredientName model model.currentIngredient.name
-        , dinnerInput "Quantity" IngredientQty model model.currentIngredient.qty
-        , dinnerInput "Unit" IngredientUnit model model.currentIngredient.unit
+        [ dinnerInputMaterial "Name of Ingredient" IngredientName model model.currentIngredient.name 5
+        , dinnerInputMaterial "Quantity" IngredientQty model model.currentIngredient.qty 6
+        , dinnerInputMaterial "Unit" IngredientUnit model model.currentIngredient.unit 7
         ]
 
 
@@ -189,9 +240,30 @@ renderIngredients ingredient =
         ]
 
 
+materialButton : Model -> Msg -> String -> Int -> Html Msg
+materialButton model msg butText group =
+    div [] [ Button.render Mdl [ group ] model.mdl [ Button.raised, Button.colored, Button.ripple, Options.onClick msg ] [ text butText ] ]
+
+
 dinnerInput : String -> (String -> Msg) -> Model -> String -> Html Msg
 dinnerInput placeHolder msg model defValue =
     div [] [ input [ type_ "text", placeholder placeHolder, onInput msg, value defValue ] [] ]
+
+
+dinnerInputMaterial : String -> (String -> Msg) -> Model -> String -> Int -> Html Msg
+dinnerInputMaterial placeHolder msg model defValue group =
+    div []
+        [ Textfield.render Mdl
+            [ group ]
+            model.mdl
+            [ Textfield.label placeHolder
+            , Textfield.floatingLabel
+            , Textfield.text_
+            , Options.onInput msg
+            , Options.attribute <| value defValue
+            ]
+            []
+        ]
 
 
 getRandomDinner : Cmd Msg
@@ -210,10 +282,18 @@ getRandomDinner =
 dinnerDecoder : JsonD.Decoder Dinner
 dinnerDecoder =
     JsonD.map4 Dinner
-        (JsonD.field "Name" JsonD.string)
-        (JsonD.field "Url" JsonD.string)
-        (JsonD.field "Tags" JsonD.string)
-        (JsonD.field "Portions" JsonD.string)
+        (JsonD.field "name" JsonD.string)
+        (JsonD.field "url" JsonD.string)
+        (JsonD.field "tags" JsonD.string)
+        (JsonD.field "portions" JsonD.string)
+
+
+ingredientDecoder : JsonD.Decoder Ingredient
+ingredientDecoder =
+    JsonD.map3 Ingredient
+        (JsonD.field "name" JsonD.string)
+        (JsonD.field "qty" JsonD.string)
+        (JsonD.field "unit" JsonD.string)
 
 
 dinnerEncoder : Model -> Encode.Value
@@ -236,6 +316,11 @@ ingredientEncoder ingredient =
         ]
 
 
+jsonResponseDecoder : JsonD.Decoder String
+jsonResponseDecoder =
+    JsonD.string
+
+
 addNewDinner : Model -> Cmd Msg
 addNewDinner model =
     let
@@ -243,9 +328,9 @@ addNewDinner model =
             "http://localhost:49203/API/MiddagsApp/AddNewDinner"
 
         request =
-            Http.post url (Http.jsonBody (dinnerEncoder model)) dinnerDecoder
+            Http.post url (Http.jsonBody (dinnerEncoder model)) jsonResponseDecoder
     in
-        Http.send NewDinner request
+        Http.send JsonResponse request
 
 
 removeIngredientFromList : String -> String -> String -> Ingredient -> Maybe Ingredient
