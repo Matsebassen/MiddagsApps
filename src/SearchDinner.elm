@@ -11,7 +11,7 @@ import Material.Table as Table
 import Material.Button as Button
 import Material.Card as Card
 import Material.Options as Options exposing (css)
-import Material.Icon as Icon
+import Material.Grid exposing (grid, cell, size, Device(..))
 import Material.Textfield as Textfield
 import Material.Color as Color
 
@@ -121,40 +121,22 @@ view model =
         [ h3 [ style [ ( "padding", "0rem" ) ] ] [ text model.statusMessage ]
         , materialInput "Search..." SearchText model model.searchText 1
         , materialButton model SearchDinners "Search" 1
-        , materialButton model GetRandomDinner "I feel lucky" 2
-        , div []
-            [ dinnerTable model ]
-        , cardView model "http://caspario.com/tanker2010/mars/cowboymat.jpg" "Cowboygryte" "Cowboygryte er nam nam nam"
+        , materialButton model GetRandomDinner "I feel lucky" 2 
+        , div[] 
+        [ List.map (dinnerCardCell model) model.dinners |> grid[]]
         ]
 
 
-dinnerTable : Model -> Html Msg
-dinnerTable model =
-    Table.table [ css "align" "center" ]
-        [ Table.thead []
-            [ Table.tr []
-                [ Table.th [] [ text "Name" ]
-                , Table.th [] [ text "Url" ]
-                , Table.th [] [ text "Tags" ]
-                , Table.th [] [ text "Portions" ]
-                ]
-            ]
-        , Table.tbody [] (List.map renderDinners model.dinners)
-        ]
+dinnerCardCell :  Model -> Dinner -> Material.Grid.Cell Msg
+dinnerCardCell model dinner =
+    cell (cellStyle 256)
+    [
+        cardView model dinner
+    ]
 
 
-renderDinners : Dinner -> Html Msg
-renderDinners dinner =
-    Table.tr []
-        [ Table.td [ css "align" "left" ] [ text dinner.name ]
-        , Table.td [ css "align" "left" ] [ text dinner.url ]
-        , Table.td [ css "align" "left" ] [ text dinner.tags ]
-        , Table.td [ css "align" "left" ] [ text dinner.portions ]
-        ]
-
-
-dynamic : Int -> Msg -> Model -> Options.Style Msg
-dynamic k showcode model =
+dynamic : Int -> Model -> Options.Style Msg
+dynamic k model =
     [ if model.raised == k then
         Elevation.e8
       else
@@ -162,19 +144,21 @@ dynamic k showcode model =
     , Elevation.transition 250
     , Options.onMouseEnter (Raise k)
     , Options.onMouseLeave (Raise -1)
-    , Options.onClick showcode
     ]
         |> Options.many
 
 
-cardView : Model -> String -> String -> String -> Html Msg
-cardView model picUrl header desc =
+cardView :  Model -> Dinner -> Html Msg
+cardView model dinner =
+    div []
+    [
     Card.view
-        [ css "width" "256px"
-        , css "padding" "20 20 20 20"
+        [ dynamic 1  model,
+            css "width" "256px"
+        --, Color.background (Color.color Color.Teal Color.S400)
         ]
         [ Card.title
-            [ css "background" ("url('" ++ picUrl ++ "') center / cover")
+            [ css "background" "url('http://caspario.com/tanker2010/mars/cowboymat.jpg') center / cover"
             , css "height" "256px"
             , css "padding" "0"
               -- Clear default padding to encompass scrim
@@ -186,10 +170,10 @@ cardView model picUrl header desc =
                   -- Restore default padding inside scrim
                 , css "width" "100%"
                 ]
-                [ text header ]
+                [ text dinner.name ]
             ]
         , Card.text []
-            [ text desc ]
+            [ text (dinner.portions ++ " portions - "++ dinner.tags) ]
         , Card.actions
             [ Card.border ]
             [ Button.render Mdl
@@ -204,11 +188,25 @@ cardView model picUrl header desc =
                 [ text "Website" ]
             ]
         ]
+        ]
 
 
 white : Options.Property c m
 white =
     Color.text Color.white
+
+cellStyle : Int -> List (Options.Style a)
+cellStyle h = 
+  [ css "text-sizing" "border-box"
+  --, css "background-color" "teal"
+  , css "padding-left" "8px"
+  , css "padding-top" "4px"
+  , css "color" "teal"
+  , css "width" "256px"
+  , Material.Grid.size Tablet 6
+  , Material.Grid.size Desktop 12
+  , Material.Grid.size Phone 4
+  ]
 
 
 materialButton : Model -> Msg -> String -> Int -> Html Msg
