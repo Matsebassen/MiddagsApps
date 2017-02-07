@@ -124,7 +124,7 @@ view model =
         , materialButton model GetRandomDinner "I feel lucky" 2
         , div []
             [ dinnerTable model ]
-        , cardView model "http://caspario.com/tanker2010/mars/cowboymat.jpg" "Cowboygryte" "Cowboygryte er nam nam"
+        , cardView model "http://caspario.com/tanker2010/mars/cowboymat.jpg" "Cowboygryte" "Cowboygryte er nam nam nam"
         ]
 
 
