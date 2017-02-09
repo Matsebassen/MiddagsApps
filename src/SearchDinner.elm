@@ -7,7 +7,7 @@ import Html.Attributes exposing (..)
 import Http exposing (..)
 import Material
 import Material.Elevation as Elevation
-import Material.Table as Table
+import Material.Dialog as Dialog
 import Material.Button as Button
 import Material.Card as Card
 import Material.Options as Options exposing (css)
@@ -25,7 +25,7 @@ type alias Model =
     , dinners : List Dinner
     , searchText : String
     , raised : Int
-    , mdl : Material.Model
+    , mdl : Material.Model    
     }
 
 
@@ -123,22 +123,39 @@ view model =
         , materialButton model SearchDinners "Search" 1
         , materialButton model GetRandomDinner "I feel lucky" 2 
         , div[] 
-        [ List.map (dinnerCardCell model) model.dinners |> grid[]]
+        [ List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid[]]
+        , element model
         ]
 
 
-dinnerCardCell :  Model -> Dinner -> Material.Grid.Cell Msg
-dinnerCardCell model dinner =
+element : Model -> Html Msg
+element model = 
+  Dialog.view
+    [ ]
+    [ Dialog.title [] [ text "Ingredients" ]
+    , Dialog.content [] 
+        [ p [] [ text "All the ingredients will be shown here" ]
+        ]
+    , Dialog.actions [ ]
+      [ Button.render Mdl [0] model.mdl
+          [ Dialog.closeOn "click" ]
+          [ text "Close" ]
+      ]
+    ]
+
+
+dinnerCardCell :  Model -> Dinner -> Int -> Material.Grid.Cell Msg
+dinnerCardCell model dinner i =
     cell (cellStyle 256)
     [
-        cardView model dinner
+        cardView model dinner i
     ]
 
 
 dynamic : Int -> Model -> Options.Style Msg
 dynamic k model =
     [ if model.raised == k then
-        Elevation.e8
+        Elevation.e16
       else
         Elevation.e2
     , Elevation.transition 250
@@ -148,12 +165,12 @@ dynamic k model =
         |> Options.many
 
 
-cardView :  Model -> Dinner -> Html Msg
-cardView model dinner =
+cardView :  Model -> Dinner -> Int -> Html Msg
+cardView model dinner i =
     div []
     [
     Card.view
-        [ dynamic 1  model,
+        [ dynamic i  model,
             css "width" "256px"
         --, Color.background (Color.color Color.Teal Color.S400)
         ]
@@ -177,12 +194,12 @@ cardView model dinner =
         , Card.actions
             [ Card.border ]
             [ Button.render Mdl
-                [ 1, 0 ]
+                [ 1, 0, i ]
                 model.mdl
-                [ Button.ripple, Button.accent ]
+                [ Button.ripple, Button.accent, Dialog.openOn "click" ]
                 [ text "Ingredients" ]
             , Button.render Mdl
-                [ 1, 1 ]
+                [ 1, 1, i ]
                 model.mdl
                 [ Button.ripple, Button.accent ]
                 [ text "Website" ]
