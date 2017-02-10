@@ -160,7 +160,8 @@ element model =
     [ ]
     [ Dialog.title [] [ text "Ingredients" ]
     , Dialog.content [] 
-        [ p [] [ text "All the ingredients will be shown here" ]
+        [ p [] 
+            [ ingredientTable model ]
         ]
     , Dialog.actions [ ]
       [ Button.render Mdl [0] model.mdl
@@ -227,7 +228,7 @@ cardView model dinner i =
             , Button.render Mdl
                 [ 1, 1, i ]
                 model.mdl
-                [ Button.ripple, Button.accent ]
+                [ Button.ripple, Button.accent, Button.link "http:\\www.vg.no", Options.attribute <| Html.Attributes.target "_blank" ]
                 [ text "Website" ]
             ]
         ]
@@ -250,6 +251,30 @@ cellStyle h =
   , Material.Grid.size Desktop 12
   , Material.Grid.size Phone 4
   ]
+
+ingredientTable :  Model -> Html Msg
+ingredientTable model =
+  table [ align "center" ]
+            [ thead []
+                [ tr []
+                    [ th [] [ text "Name" ]
+                    , th [] [ text "Quantity" ]
+                    , th [] [ text "Unit" ]
+                    , th [] []
+                    ]
+                ]
+            , tbody [] (List.map renderIngredients model.ingredients)
+            ]
+
+renderIngredients : Ingredient -> Html Msg
+renderIngredients ingredient =
+    tr []
+        [ td [ align "left" ] [ text ingredient.name ]
+        , td [ align "left" ] [ text ingredient.qty ]
+        , td [ align "left" ] [ text ingredient.unit ]
+        --, td [ align "left" ] [ button [ onClick (EditIngredient ingredient) ] [ text "edit" ] ]
+        --, td [ align "left" ] [ button [ onClick (RemoveIngredient ingredient) ] [ text "remove" ] ]
+        ]
 
 
 materialButton : Model -> Msg -> String -> Int -> Html Msg
@@ -276,7 +301,7 @@ materialInput placeHolder msg model defValue group =
             , Textfield.floatingLabel
             , Textfield.text_
             , Options.onInput msg
-            , Options.attribute <| value defValue
+            , Textfield.value defValue
             ]
             []
         ]

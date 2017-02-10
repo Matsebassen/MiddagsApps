@@ -188,7 +188,7 @@ dinnerInputMaterial placeHolder msg model defValue group =
             , Textfield.floatingLabel
             , Textfield.text_
             , Options.onInput msg
-            , Options.attribute <| value defValue
+            , Textfield.value defValue
             ]
             []
         ]
