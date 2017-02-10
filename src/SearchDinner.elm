@@ -1,6 +1,6 @@
 module SearchDinner exposing (..)
 
-import ServerApi exposing (Dinner, Ingredient, getRandomDinner, searchDinners, addNewDinner)
+import ServerApi exposing (Dinner, Ingredient, getRandomDinner, searchDinners, addNewDinner, getIngredients)
 import Html exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
@@ -23,6 +23,7 @@ type alias Model =
     { statusMessage : String
     , dinner : Dinner
     , dinners : List Dinner
+    , ingredients : List Ingredient
     , searchText : String
     , raised : Int
     , mdl : Material.Model    
@@ -39,7 +40,7 @@ type alias Mdl =
 
 init : Model
 init =
-    Model "" (Dinner "" "" "" "") [] "" -1 Material.model
+    Model "" (Dinner "" "" "" "") [] [] "" -1 Material.model
 
 
 
@@ -52,6 +53,8 @@ type Msg
     | SearchResults (Result Http.Error (List Dinner))
     | SearchText String
     | SearchDinners
+    | SearchIngredients Dinner
+    | SearchIngredientsResult (Result Http.Error (List Ingredient))
     | Raise Int
     | Mdl (Material.Msg Msg)
 
@@ -107,6 +110,29 @@ update msg model =
 
         SearchDinners ->
             ( model, searchDinners model.searchText SearchResults )
+        
+        SearchIngredients dinner ->
+            ( model, getIngredients dinner.name SearchIngredientsResult )    
+
+        SearchIngredientsResult (Ok ingredientsFound) ->
+            ( { model | ingredients = ingredientsFound }, Cmd.none )
+
+        SearchIngredientsResult (Err error) ->
+            case error of
+                Http.BadUrl badUrlMsg ->
+                    ( { model | statusMessage = "That was a shitty url. Message: " ++ badUrlMsg }, Cmd.none )
+
+                Http.Timeout ->
+                    ( { model | statusMessage = "The request timed out" }, Cmd.none )
+
+                Http.NetworkError ->
+                    ( { model | statusMessage = "There seems to be a network error, Sir" }, Cmd.none )
+
+                Http.BadStatus badResponse ->
+                    ( { model | statusMessage = "Bad status. Does that make sense to you?" ++ toString badResponse }, Cmd.none )
+
+                Http.BadPayload debugMessage badResponse ->
+                    ( { model | statusMessage = "My payload is bad. Really bad. Also, I got a message for you: " ++ debugMessage }, Cmd.none )
 
         Raise k ->
             { model | raised = k } ! []
@@ -196,7 +222,7 @@ cardView model dinner i =
             [ Button.render Mdl
                 [ 1, 0, i ]
                 model.mdl
-                [ Button.ripple, Button.accent, Dialog.openOn "click" ]
+                [ Button.ripple, Button.accent, Dialog.openOn "click", Options.onClick (SearchIngredients dinner) ]
                 [ text "Ingredients" ]
             , Button.render Mdl
                 [ 1, 1, i ]

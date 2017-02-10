@@ -57,6 +57,18 @@ searchDinners searchText msg =
         Http.send msg request
 
 
+getIngredients : String -> (Result Http.Error (List Ingredient) -> msg) -> Cmd msg
+getIngredients dinnerName msg =
+    let
+        url =
+            "http://localhost:49203/API/MiddagsApp/GetIngredients"
+
+        request =
+            Http.post url (Http.jsonBody (Encode.string dinnerName)) (JsonD.list ingredientDecoder)
+    in
+        Http.send msg request        
+
+
 dinnerDecoder : JsonD.Decoder Dinner
 dinnerDecoder =
     JsonD.map4 Dinner
