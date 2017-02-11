@@ -14,6 +14,8 @@ import Material.Options as Options exposing (css)
 import Material.Grid exposing (grid, cell, size, Device(..))
 import Material.Textfield as Textfield
 import Material.Color as Color
+import Material.Helpers exposing (map1st, map2nd, delay, pure, cssTransitionStep)
+import Material.Snackbar as Snackbar
 
 
 --MODEL
@@ -26,6 +28,7 @@ type alias Model =
     , ingredients : List Ingredient
     , searchText : String
     , raised : Int
+    , snackbar : Snackbar.Model Int
     , mdl : Material.Model    
     }
 
@@ -40,7 +43,7 @@ type alias Mdl =
 
 init : Model
 init =
-    Model "" (Dinner "" "" "" "") [] [] "" -1 Material.model
+    Model "" (Dinner "" "" "" "") [] [] "" -1 Snackbar.model Material.model
 
 
 
@@ -56,6 +59,7 @@ type Msg
     | SearchIngredients Dinner
     | SearchIngredientsResult (Result Http.Error (List Ingredient))
     | Raise Int
+    | Snackbar (Snackbar.Msg Int)
     | Mdl (Material.Msg Msg)
 
 
@@ -97,7 +101,7 @@ update msg model =
                     ( { model | statusMessage = "The request timed out" }, Cmd.none )
 
                 Http.NetworkError ->
-                    ( { model | statusMessage = "There seems to be a network error, Sir" }, Cmd.none )
+                    addToast ( Snackbar.toast 1 "Can't contact server") model
 
                 Http.BadStatus badResponse ->
                     ( { model | statusMessage = "Bad status. Does that make sense to you?" ++ toString badResponse }, Cmd.none )
@@ -137,6 +141,11 @@ update msg model =
         Raise k ->
             { model | raised = k } ! []
 
+        Snackbar msg_ -> 
+            Snackbar.update msg_ model.snackbar 
+            |> map1st (\s -> { model | snackbar = s })
+            |> map2nd (Cmd.map Snackbar)            
+
         Mdl msg_ ->
             Material.update Mdl msg_ model
 
@@ -151,6 +160,7 @@ view model =
         , div[] 
         [ List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid[]]
         , element model
+        , Snackbar.view model.snackbar |> Html.map Snackbar
         ]
 
 
@@ -275,6 +285,21 @@ renderIngredients ingredient =
         --, td [ align "left" ] [ button [ onClick (EditIngredient ingredient) ] [ text "edit" ] ]
         --, td [ align "left" ] [ button [ onClick (RemoveIngredient ingredient) ] [ text "remove" ] ]
         ]
+
+addToast : (Snackbar.Contents Int) -> Model -> (Model, Cmd Msg)
+addToast f model =
+  let 
+    (snackbar_, effect) = 
+      Snackbar.add (f) model.snackbar
+        |> map2nd (Cmd.map Snackbar)
+    model_ = 
+      { model 
+      | snackbar = snackbar_
+      }
+  in 
+    ( model_
+    , effect       
+    )
 
 
 materialButton : Model -> Msg -> String -> Int -> Html Msg

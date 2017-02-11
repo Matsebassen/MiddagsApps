@@ -6,20 +6,22 @@ import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import Http exposing (..)
 import Material
+import Material.Helpers exposing (map1st, map2nd, delay, pure, cssTransitionStep)
 import Material.Button as Button
 import Material.Options as Options exposing (css)
 import Material.Icon as Icon
 import Material.Textfield as Textfield
+import Material.Snackbar as Snackbar
 
 
 --MODEL
 
 
 type alias Model =
-    { statusMessage : String
-    , dinner : Dinner
+    { dinner : Dinner
     , ingredients : List Ingredient
     , currentIngredient : Ingredient
+    , snackbar : Snackbar.Model Int
     , mdl : Material.Model
     }
 
@@ -37,6 +39,7 @@ type Msg
     | IngredientUnit String
     | AddIngredient
     | RemoveIngredient Ingredient
+    | Snackbar (Snackbar.Msg Int)
     | EditIngredient Ingredient
 
 
@@ -50,7 +53,7 @@ type alias Mdl =
 
 init : Model
 init =
-    Model "" (Dinner "" "" "" "") [] (Ingredient "" "" "") Material.model
+    Model (Dinner "" "" "" "") [] (Ingredient "" "" "") Snackbar.model Material.model
 
 
 
@@ -64,24 +67,24 @@ update msg model =
             ( model, addNewDinner model.dinner model.ingredients JsonResponse )
 
         JsonResponse (Ok response) ->
-            ( Model response (Dinner "" "" "" "") [] (Ingredient "" "" "") model.mdl, Cmd.none )
+            addToast ( Snackbar.toast 1 response)  (Model (Dinner "" "" "" "") [] (Ingredient "" "" "") Snackbar.model model.mdl)
 
         JsonResponse (Err error) ->
             case error of
                 Http.BadUrl badUrlMsg ->
-                    ( { model | statusMessage = "That was a shitty url. Message: " ++ badUrlMsg }, Cmd.none )
+                    addToast ( Snackbar.toast 1 ("That was a shitty url. Message: " ++ badUrlMsg)) model                    
 
                 Http.Timeout ->
-                    ( { model | statusMessage = "The request timed out" }, Cmd.none )
+                    addToast ( Snackbar.toast 1 "The request timed out") model
 
                 Http.NetworkError ->
-                    ( { model | statusMessage = "There seems to be a network error, Sir" }, Cmd.none )
+                    addToast ( Snackbar.toast 1 "Can't contact server") model
 
                 Http.BadStatus badResponse ->
-                    ( { model | statusMessage = "Bad status. Does that make sense to you? " }, Cmd.none )
+                    addToast ( Snackbar.toast 1 "Bad response code from webservice") model
 
                 Http.BadPayload debugMessage badResponse ->
-                    ( { model | statusMessage = "My payload is bad. Really bad. Also, I got a message for you: " ++ debugMessage }, Cmd.none )
+                    addToast ( Snackbar.toast 1 "Bad payload. Perhaps wrong JSON format?") model
 
         DinnerName newName ->
             ( { model | dinner = setDinnerName newName model.dinner }, Cmd.none )
@@ -105,13 +108,19 @@ update msg model =
             ( { model | currentIngredient = setIngredientUnit unit model.currentIngredient }, Cmd.none )
 
         AddIngredient ->
-            ( { model | ingredients = addNewIngredient model, currentIngredient = (Ingredient "" "" "") }, Cmd.none )
+            ( { model | ingredients = addNewIngredient model, currentIngredient = (Ingredient "" "" "") }, Cmd.none)
 
         RemoveIngredient ingredient ->
             ( { model | ingredients = (List.filterMap (removeIngredientFromList ingredient.name ingredient.qty ingredient.unit) model.ingredients) }, Cmd.none )
 
         EditIngredient ingredient ->
-            ( { model | currentIngredient = ingredient, ingredients = (List.filterMap (removeIngredientFromList ingredient.name ingredient.qty ingredient.unit) model.ingredients) }, Cmd.none )
+            ( { model | currentIngredient = ingredient, ingredients = (List.filterMap (removeIngredientFromList ingredient.name ingredient.qty ingredient.unit) model.ingredients) }, Cmd.none )             
+        
+        Snackbar msg_ -> 
+            Snackbar.update msg_ model.snackbar 
+            |> map1st (\s -> { model | snackbar = s })
+            |> map2nd (Cmd.map Snackbar)
+    
 
         Mdl msg_ ->
             Material.update Mdl msg_ model
@@ -124,8 +133,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ text model.statusMessage
-        , dinnerView model
+        [ dinnerView model
         , materialButton model AddDinner "Add dinner" 2
         , br [] []
         , table [ align "center" ]
@@ -141,6 +149,7 @@ view model =
             ]
         , ingredientView model
         , div [] [ Button.render Mdl [ 0 ] model.mdl [ Button.minifab, Button.colored, Options.onClick AddIngredient ] [ Icon.i "add" ] ]
+        , Snackbar.view model.snackbar |> Html.map Snackbar
         ]
 
 
@@ -197,6 +206,22 @@ dinnerInputMaterial placeHolder msg model defValue group =
 materialButton : Model -> Msg -> String -> Int -> Html Msg
 materialButton model msg butText group =
     div [] [ Button.render Mdl [ group ] model.mdl [ Button.raised, Button.colored, Button.ripple, Options.onClick msg ] [ text butText ] ]
+
+
+addToast : (Snackbar.Contents Int) -> Model -> (Model, Cmd Msg)
+addToast f model =
+  let 
+    (snackbar_, effect) = 
+      Snackbar.add (f) model.snackbar
+        |> map2nd (Cmd.map Snackbar)
+    model_ = 
+      { model 
+      | snackbar = snackbar_
+      }
+  in 
+    ( model_
+    , effect       
+    )
 
 
 
