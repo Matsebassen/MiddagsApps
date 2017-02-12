@@ -85,11 +85,11 @@ view model =
     Layout.render Mdl
         model.mdl
         [ Layout.fixedHeader
-        , Layout.onSelectTab SelectTab
+        , Layout.onSelectTab SelectTab       
         ]
         { header = [ h2 [ style [ ( "padding", "0rem" ) ] ] [ text "Middag" ] ]
         , drawer = []
-        , tabs = ( [ text "Search", text "Add Dinner" ], [ Color.background (Color.color Color.Teal Color.S400) ] )
+        , tabs = ( [ text "Search", text "Add Dinner" ], [ Color.background (Color.color Color.Teal Color.S600) ] )
         , main = [ viewBody model ]
         }
 
@@ -114,8 +114,3 @@ viewBody model =
                 [ br [] []
                 , Html.map AddDinnerMsg <| AddDinner.view model.addDinnerModel
                 ]
-
-
-dinnerInput : String -> (String -> Msg) -> Model -> String -> Html Msg
-dinnerInput placeHolder msg model defValue =
-    div [] [ input [ type_ "text", placeholder placeHolder, onInput msg, value defValue ] [] ]
