@@ -12,6 +12,10 @@ import Material.Options as Options exposing (css)
 import Material.Icon as Icon
 import Material.Textfield as Textfield
 import Material.Snackbar as Snackbar
+import Material.Card as Card
+import Material.Color as Color
+import Material.Typography as Typo
+import Material.Elevation as Elevation
 
 
 --MODEL
@@ -67,24 +71,24 @@ update msg model =
             ( model, addNewDinner model.dinner model.ingredients JsonResponse )
 
         JsonResponse (Ok response) ->
-            addToast ( Snackbar.toast 1 response)  (Model (Dinner "" "" "" "") [] (Ingredient "" "" "") Snackbar.model model.mdl)
+            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "") [] (Ingredient "" "" "") Snackbar.model model.mdl)
 
         JsonResponse (Err error) ->
             case error of
                 Http.BadUrl badUrlMsg ->
-                    addToast ( Snackbar.toast 1 ("That was a shitty url. Message: " ++ badUrlMsg)) model                    
+                    addToast (Snackbar.toast 1 ("That was a shitty url. Message: " ++ badUrlMsg)) model
 
                 Http.Timeout ->
-                    addToast ( Snackbar.toast 1 "The request timed out") model
+                    addToast (Snackbar.toast 1 "The request timed out") model
 
                 Http.NetworkError ->
-                    addToast ( Snackbar.toast 1 "Can't contact server") model
+                    addToast (Snackbar.toast 1 "Can't contact server") model
 
                 Http.BadStatus badResponse ->
-                    addToast ( Snackbar.toast 1 "Bad response code from webservice") model
+                    addToast (Snackbar.toast 1 "Bad response code from webservice") model
 
                 Http.BadPayload debugMessage badResponse ->
-                    addToast ( Snackbar.toast 1 "Bad payload. Perhaps wrong JSON format?") model
+                    addToast (Snackbar.toast 1 "Bad payload. Perhaps wrong JSON format?") model
 
         DinnerName newName ->
             ( { model | dinner = setDinnerName newName model.dinner }, Cmd.none )
@@ -108,19 +112,18 @@ update msg model =
             ( { model | currentIngredient = setIngredientUnit unit model.currentIngredient }, Cmd.none )
 
         AddIngredient ->
-            ( { model | ingredients = addNewIngredient model, currentIngredient = (Ingredient "" "" "") }, Cmd.none)
+            ( { model | ingredients = addNewIngredient model, currentIngredient = (Ingredient "" "" "") }, Cmd.none )
 
         RemoveIngredient ingredient ->
             ( { model | ingredients = (List.filterMap (removeIngredientFromList ingredient.name ingredient.qty ingredient.unit) model.ingredients) }, Cmd.none )
 
         EditIngredient ingredient ->
-            ( { model | currentIngredient = ingredient, ingredients = (List.filterMap (removeIngredientFromList ingredient.name ingredient.qty ingredient.unit) model.ingredients) }, Cmd.none )             
-        
-        Snackbar msg_ -> 
-            Snackbar.update msg_ model.snackbar 
-            |> map1st (\s -> { model | snackbar = s })
-            |> map2nd (Cmd.map Snackbar)
-    
+            ( { model | currentIngredient = ingredient, ingredients = (List.filterMap (removeIngredientFromList ingredient.name ingredient.qty ingredient.unit) model.ingredients) }, Cmd.none )
+
+        Snackbar msg_ ->
+            Snackbar.update msg_ model.snackbar
+                |> map1st (\s -> { model | snackbar = s })
+                |> map2nd (Cmd.map Snackbar)
 
         Mdl msg_ ->
             Material.update Mdl msg_ model
@@ -133,22 +136,18 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ dinnerView model
-        , materialButton model AddDinner "Add dinner" 2
-        , br [] []
-        , table [ align "center" ]
-            [ thead []
-                [ tr []
-                    [ th [] [ text "Name" ]
-                    , th [] [ text "Quantity" ]
-                    , th [] [ text "Unit" ]
-                    , th [] []
-                    ]
-                ]
-            , tbody [] (List.map renderIngredients model.ingredients)
+        [ Options.div
+            [ css "display" "flex"
+            , css "flex-flow" "row wrap"
+            , css "align-items" "center"
+            , css "width" "100%"
+            , css "margin-top" "4rem"
+            , css "justify-content" "center"
             ]
-        , ingredientView model
-        , div [] [ Button.render Mdl [ 0 ] model.mdl [ Button.minifab, Button.colored, Options.onClick AddIngredient ] [ Icon.i "add" ] ]
+            [ dinnerViewCard model
+            , ingredientViewCard model
+            ]
+        , materialButton model AddDinner "Add Dinner to DB" 2
         , Snackbar.view model.snackbar |> Html.map Snackbar
         ]
 
@@ -156,19 +155,97 @@ view model =
 dinnerView : Model -> Html Msg
 dinnerView model =
     div []
-        [ dinnerInputMaterial "Name of dinner" DinnerName model model.dinner.name 1
+        [ (Options.styled p [ Typo.title ] [ text "New Dinner" ])
+        , dinnerInputMaterial "Name of dinner" DinnerName model model.dinner.name 1
         , dinnerInputMaterial "Portions" DinnerPortions model model.dinner.portions 2
         , dinnerInputMaterial "Tags" DinnerTags model model.dinner.tags 3
         , dinnerInputMaterial "Url (optional)" DinnerUrl model model.dinner.url 4
         ]
 
 
+dinnerViewCard : Model -> Html Msg
+dinnerViewCard model =
+    Card.view
+        [ --css "width" "auto"
+          css "height" "auto"
+        , Elevation.e2
+        , css "margin" "0"
+        , css "align-items" "center"
+          --, css "background" "url('assets/elm.png') center / cover"
+        ]
+        [ Card.text [ Card.expand ] []
+          -- Filler
+        , Card.text
+            [ css "background" "rgba(0, 0, 0, 0)" ]
+            -- Non-gradient scrim
+            [ Options.span
+                [ black, Typo.title, Typo.contrast 1.0 ]
+                [ dinnerView model ]
+            ]
+        ]
+
+
+black : Options.Property c m
+black =
+    Color.text Color.black
+
+
 ingredientView : Model -> Html Msg
 ingredientView model =
     div []
-        [ dinnerInputMaterial "Name of Ingredient" IngredientName model model.currentIngredient.name 5
+        [ (Options.styled p [ Typo.title ] [ text "Ingredients" ])
+        , dinnerInputMaterial "Name of Ingredient" IngredientName model model.currentIngredient.name 5
         , dinnerInputMaterial "Quantity" IngredientQty model model.currentIngredient.qty 6
         , dinnerInputMaterial "Unit" IngredientUnit model model.currentIngredient.unit 7
+        ]
+
+
+ingredientViewCard : Model -> Html Msg
+ingredientViewCard model =
+    Card.view
+        [ css "width" "800px"
+        , css "height" "auto"
+        , Elevation.e2
+        , css "margin" "50px 50px 50px 50px "
+        , css "align-items" "center"
+          --, css "background" "url('assets/elm.png') center / cover"
+        ]
+        [ Card.text [ Card.expand ] []
+          -- Filler
+        , Card.text
+            [ css "background" "rgba(0, 0, 0, 0)" ]
+            -- Non-gradient scrim
+            [ Options.span
+                [ black, Typo.title, Typo.contrast 1.0 ]
+                [ Options.div
+                    [ css "display" "flex"
+                    , css "flex-direction" "row"
+                    , css "width" "100%"
+                    , css "margin-top" "4rem"
+                    ]
+                    [ div []
+                        [ ingredientView model
+                        , materialButton model AddIngredient "Add" 1
+                        ]
+                    , ingredientsTable model
+                    ]
+                ]
+            ]
+        ]
+
+
+ingredientsTable : Model -> Html Msg
+ingredientsTable model =
+    table [ align "center" ]
+        [ thead []
+            [ tr []
+                [ th [] [ text "Name" ]
+                , th [] [ text "Quantity" ]
+                , th [] [ text "Unit" ]
+                , th [] []
+                ]
+            ]
+        , tbody [] (List.map renderIngredients model.ingredients)
         ]
 
 
@@ -208,20 +285,21 @@ materialButton model msg butText group =
     div [] [ Button.render Mdl [ group ] model.mdl [ Button.raised, Button.colored, Button.ripple, Options.onClick msg ] [ text butText ] ]
 
 
-addToast : (Snackbar.Contents Int) -> Model -> (Model, Cmd Msg)
+addToast : Snackbar.Contents Int -> Model -> ( Model, Cmd Msg )
 addToast f model =
-  let 
-    (snackbar_, effect) = 
-      Snackbar.add (f) model.snackbar
-        |> map2nd (Cmd.map Snackbar)
-    model_ = 
-      { model 
-      | snackbar = snackbar_
-      }
-  in 
-    ( model_
-    , effect       
-    )
+    let
+        ( snackbar_, effect ) =
+            Snackbar.add (f) model.snackbar
+                |> map2nd (Cmd.map Snackbar)
+
+        model_ =
+            { model
+                | snackbar = snackbar_
+            }
+    in
+        ( model_
+        , effect
+        )
 
 
 
