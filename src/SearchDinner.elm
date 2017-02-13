@@ -159,13 +159,13 @@ view model =
         , materialButton model GetRandomDinner "I feel lucky" 2 
         , div[] 
         [ List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid[]]
-        , element model
+        , dialogView model
         , Snackbar.view model.snackbar |> Html.map Snackbar
         ]
 
 
-element : Model -> Html Msg
-element model = 
+dialogView : Model -> Html Msg
+dialogView model = 
   Dialog.view
     [ ]
     [ Dialog.title [] [ text "Ingredients" ]

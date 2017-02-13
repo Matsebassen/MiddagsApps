@@ -5,18 +5,19 @@ import Html exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import Http exposing (..)
+import Regex exposing (split)
+import Array exposing (..)
 import Material
 import Material.Helpers exposing (map1st, map2nd, delay, pure, cssTransitionStep)
 import Material.Button as Button
 import Material.Options as Options exposing (css)
-import Material.Icon as Icon
 import Material.Textfield as Textfield
 import Material.Snackbar as Snackbar
 import Material.Card as Card
 import Material.Color as Color
 import Material.Typography as Typo
 import Material.Elevation as Elevation
-
+import Material.Dialog as Dialog
 
 --MODEL
 
@@ -25,6 +26,8 @@ type alias Model =
     { dinner : Dinner
     , ingredients : List Ingredient
     , currentIngredient : Ingredient
+    , inputIngredients : List String
+    , ingredientFormat : IngredientFormat
     , snackbar : Snackbar.Model Int
     , mdl : Material.Model
     }
@@ -45,11 +48,18 @@ type Msg
     | RemoveIngredient Ingredient
     | Snackbar (Snackbar.Msg Int)
     | EditIngredient Ingredient
+    | InputAsList
+    | IngredientsListInput String
+    | SwitchFormat IngredientFormat
 
 
 type alias Mdl =
     Material.Model
 
+type IngredientFormat
+  = NameQtyUnit
+  | QtyUnitName
+  | UnitQtyName
 
 
 --INIT
@@ -57,7 +67,7 @@ type alias Mdl =
 
 init : Model
 init =
-    Model (Dinner "" "" "" "") [] (Ingredient "" "" "") Snackbar.model Material.model
+    Model (Dinner "" "" "" "") [] (Ingredient "" "" "") [] NameQtyUnit Snackbar.model Material.model
 
 
 
@@ -71,7 +81,7 @@ update msg model =
             ( model, addNewDinner model.dinner model.ingredients JsonResponse )
 
         JsonResponse (Ok response) ->
-            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "") [] (Ingredient "" "" "") Snackbar.model model.mdl)
+            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "") [] (Ingredient "" "" "") [] NameQtyUnit Snackbar.model model.mdl)
 
         JsonResponse (Err error) ->
             case error of
@@ -124,6 +134,15 @@ update msg model =
             Snackbar.update msg_ model.snackbar
                 |> map1st (\s -> { model | snackbar = s })
                 |> map2nd (Cmd.map Snackbar)
+        
+        InputAsList ->
+            (model, Cmd.none)       
+        
+        SwitchFormat format ->
+            ({model | ingredientFormat = format}, Cmd.none)
+
+        IngredientsListInput input ->
+            ({model | ingredients = arrayToIngredients (listToNestedArray (String.lines input)) model.ingredientFormat}, Cmd.none)
 
         Mdl msg_ ->
             Material.update Mdl msg_ model
@@ -149,6 +168,7 @@ view model =
             ]
         , materialButton model AddDinner "Add Dinner to DB" 2
         , Snackbar.view model.snackbar |> Html.map Snackbar
+        , dialogView model
         ]
 
 
@@ -184,10 +204,6 @@ dinnerViewCard model =
             ]
         ]
 
-
-black : Options.Property c m
-black =
-    Color.text Color.black
 
 
 ingredientView : Model -> Html Msg
@@ -225,7 +241,8 @@ ingredientViewCard model =
                     ]
                     [ div []
                         [ ingredientView model
-                        , materialButton model AddIngredient "Add" 1
+                        , materialButtonDiagOpen model InputAsList "Input as List" 1
+                        , materialButton model AddIngredient "Add" 3
                         ]
                     , ingredientsTable model
                     ]
@@ -260,8 +277,55 @@ renderIngredients ingredient =
         ]
 
 
+dialogView : Model -> Html Msg
+dialogView model = 
+  Dialog.view
+    [ ]
+    [ Dialog.title [] [ text "List of ingredients" ]
+    , Dialog.content [] 
+        [ p [] 
+            [ div[] [
+                fieldset []
+                    [ radio "Name;Qty;Unit" (SwitchFormat NameQtyUnit)
+                    , radio "Qty;Unit;Name" (SwitchFormat QtyUnitName)
+                    , radio "Unit;Qty;Name" (SwitchFormat UnitQtyName)
+                    ]
+                ,Textfield.render Mdl [10] model.mdl
+                    [ Textfield.label "Paste the recipe here..."
+                    , Textfield.floatingLabel
+                    , Textfield.textarea
+                    , Textfield.rows 10
+                    , Options.onInput IngredientsListInput
+                    ]
+                    []
+            ]
+            ]
+        ]
+    , Dialog.actions [ ]
+      [ Button.render Mdl [0] model.mdl
+          [ Dialog.closeOn "click" ]
+          [ text "Add" ]
+      ]
+    ]
+
+
+
+
 
 -- HELPER FUNCTIONS
+
+radio : String -> msg -> Html msg
+radio value msg =
+  label
+    [ style [("padding", "20px")]
+    ]
+    [ input [ type_ "radio", name "font-size", onClick msg ] []
+    , text value
+    ]
+
+black : Options.Property c m
+black =
+    Color.text Color.black
 
 
 dinnerInputMaterial : String -> (String -> Msg) -> Model -> String -> Int -> Html Msg
@@ -282,7 +346,31 @@ dinnerInputMaterial placeHolder msg model defValue group =
 
 materialButton : Model -> Msg -> String -> Int -> Html Msg
 materialButton model msg butText group =
-    div [] [ Button.render Mdl [ group ] model.mdl [ Button.raised, Button.colored, Button.ripple, Options.onClick msg ] [ text butText ] ]
+    Button.render Mdl
+        [ group ]
+        model.mdl
+        [ Button.raised
+        , Button.colored
+        , Button.ripple
+        , Options.onClick msg
+        , css "margin" "0 12px"
+        ]
+        [ text butText ]
+
+materialButtonDiagOpen : Model -> Msg -> String -> Int -> Html Msg
+materialButtonDiagOpen model msg butText group =
+    Button.render Mdl
+        [ group ]
+        model.mdl
+        [ Button.raised
+        , Button.colored
+        , Button.ripple
+        , Options.onClick msg
+        , Dialog.openOn "click"
+        , css "margin" "0 12px"
+        ]
+        [ text butText ]
+
 
 
 addToast : Snackbar.Contents Int -> Model -> ( Model, Cmd Msg )
@@ -301,7 +389,29 @@ addToast f model =
         , effect
         )
 
+listToNestedArray : List String -> List (List String)
+listToNestedArray list =
+    List.map (Regex.split (Regex.AtMost 3) (Regex.regex " ") ) list
 
+arrayToIngredients : List (List String) -> IngredientFormat -> (List Ingredient)
+arrayToIngredients ingredientList format = 
+   List.map (arrayToIngredient format) ingredientList 
+
+arrayToIngredient : IngredientFormat -> List String -> Ingredient
+arrayToIngredient format ingredientArray  =    
+    case format of
+    NameQtyUnit ->
+        Ingredient (fromJust (Array.get 0 (Array.fromList ingredientArray))) (fromJust (Array.get 1 (Array.fromList ingredientArray))) (fromJust (Array.get 2 (Array.fromList ingredientArray)))
+    QtyUnitName ->
+        Ingredient (fromJust (Array.get 2 (Array.fromList ingredientArray))) (fromJust (Array.get 0 (Array.fromList ingredientArray))) (fromJust (Array.get 1 (Array.fromList ingredientArray)))
+    UnitQtyName ->
+        Ingredient (fromJust (Array.get 2 (Array.fromList ingredientArray))) (fromJust (Array.get 1 (Array.fromList ingredientArray))) (fromJust (Array.get 0 (Array.fromList ingredientArray)))
+
+
+fromJust : Maybe String -> String
+fromJust x = case x of
+    Just y -> y
+    Nothing -> ""
 
 -- GETTERS & SETTERS
 
