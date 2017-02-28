@@ -212,7 +212,7 @@ cardView model dinner i =
         --, Color.background (Color.color Color.Teal Color.S400)
         ]
         [ Card.title
-            [ css "background" "url('http://caspario.com/tanker2010/mars/cowboymat.jpg') center / cover"
+            [ css "background" "url('http://i2.wp.com/trinesmatblogg.no/wp-content/uploads/2015/01/IMG_3137.jpg?w=873') center / cover"
             , css "height" "256px"
             , css "padding" "0"
               -- Clear default padding to encompass scrim
@@ -238,7 +238,7 @@ cardView model dinner i =
             , Button.render Mdl
                 [ 1, 1, i ]
                 model.mdl
-                [ Button.ripple, Button.accent, Button.link "http:\\www.vg.no", Options.attribute <| Html.Attributes.target "_blank" ]
+                [ Button.ripple, Button.accent, Button.link dinner.url, Options.attribute <| Html.Attributes.target "_blank" ]
                 [ text "Website" ]
             ]
         ]

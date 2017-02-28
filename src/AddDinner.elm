@@ -287,7 +287,9 @@ dialogView model =
             [ div[] [
                 fieldset []
                     [ radio "Name;Qty;Unit" (SwitchFormat NameQtyUnit)
+                    , br [] []
                     , radio "Qty;Unit;Name" (SwitchFormat QtyUnitName)
+                    , br [] []
                     , radio "Unit;Qty;Name" (SwitchFormat UnitQtyName)
                     ]
                 ,Textfield.render Mdl [10] model.mdl
@@ -317,7 +319,7 @@ dialogView model =
 radio : String -> msg -> Html msg
 radio value msg =
   label
-    [ style [("padding", "20px")]
+    [ style []
     ]
     [ input [ type_ "radio", name "font-size", onClick msg ] []
     , text value
