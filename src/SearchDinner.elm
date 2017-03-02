@@ -43,7 +43,7 @@ type alias Mdl =
 
 init : Model
 init =
-    Model "" (Dinner "" "" "" "") [] [] "" -1 Snackbar.model Material.model
+    Model "" (Dinner "" "" "" "" "") [] [] "" -1 Snackbar.model Material.model
 
 
 
@@ -52,7 +52,6 @@ init =
 
 type Msg
     = GetRandomDinner
-    | NewDinner (Result Http.Error Dinner)
     | SearchResults (Result Http.Error (List Dinner))
     | SearchText String
     | SearchDinners
@@ -67,27 +66,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GetRandomDinner ->
-            ( model, getRandomDinner NewDinner )
-
-        NewDinner (Ok newDinner) ->
-            ( { model | dinner = newDinner }, Cmd.none )
-
-        NewDinner (Err error) ->
-            case error of
-                Http.BadUrl badUrlMsg ->
-                    ( { model | statusMessage = "That was a shitty url. Message: " ++ badUrlMsg }, Cmd.none )
-
-                Http.Timeout ->
-                    ( { model | statusMessage = "The request timed out" }, Cmd.none )
-
-                Http.NetworkError ->
-                    ( { model | statusMessage = "There seems to be a network error, Sir" }, Cmd.none )
-
-                Http.BadStatus badResponse ->
-                    ( { model | statusMessage = "Bad status. Does that make sense to you?" ++ toString badResponse }, Cmd.none )
-
-                Http.BadPayload debugMessage badResponse ->
-                    ( { model | statusMessage = "My payload is bad. Really bad. Also, I got a message for you: " ++ debugMessage }, Cmd.none )
+            ( model, getRandomDinner SearchResults )
 
         SearchResults (Ok dinnersFound) ->
             ( { model | dinners = dinnersFound }, Cmd.none )
@@ -209,10 +188,11 @@ cardView model dinner i =
     Card.view
         [ dynamic i  model,
             css "width" "256px"
+            ,css "height" "340px"
         --, Color.background (Color.color Color.Teal Color.S400)
         ]
         [ Card.title
-            [ css "background" "url('http://i2.wp.com/trinesmatblogg.no/wp-content/uploads/2015/01/IMG_3137.jpg?w=873') center / cover"
+            [ css "background" ("url('" ++ dinner.picUrl ++ "') center / cover")
             , css "height" "256px"
             , css "padding" "0"
               -- Clear default padding to encompass scrim

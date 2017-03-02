@@ -39,6 +39,7 @@ type Msg
     | Mdl (Material.Msg Msg)
     | DinnerName String
     | DinnerUrl String
+    | DinnerPicUrl String
     | DinnerTags String
     | DinnerPortions String
     | IngredientName String
@@ -67,7 +68,7 @@ type IngredientFormat
 
 init : Model
 init =
-    Model (Dinner "" "" "" "") [] (Ingredient "" "" "") [] NameQtyUnit Snackbar.model Material.model
+    Model (Dinner "" "" "" "" "") [] (Ingredient "" "" "") [] NameQtyUnit Snackbar.model Material.model
 
 
 
@@ -81,7 +82,7 @@ update msg model =
             ( model, addNewDinner model.dinner model.ingredients JsonResponse )
 
         JsonResponse (Ok response) ->
-            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "") [] (Ingredient "" "" "") [] NameQtyUnit Snackbar.model model.mdl)
+            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "") [] (Ingredient "" "" "") [] NameQtyUnit Snackbar.model model.mdl)
 
         JsonResponse (Err error) ->
             case error of
@@ -104,7 +105,10 @@ update msg model =
             ( { model | dinner = setDinnerName newName model.dinner }, Cmd.none )
 
         DinnerUrl newUrl ->
-            ( { model | dinner = setDinnerUrl newUrl model.dinner }, Cmd.none )
+            ( { model | dinner = setDinnerUrl newUrl model.dinner }, Cmd.none )     
+
+        DinnerPicUrl newUrl ->
+            ( { model | dinner = setDinnerPicUrl newUrl model.dinner }, Cmd.none )         
 
         DinnerTags newTags ->
             ( { model | dinner = setDinnerTags newTags model.dinner }, Cmd.none )
@@ -179,7 +183,8 @@ dinnerView model =
         , dinnerInputMaterial "Name of dinner" DinnerName model model.dinner.name 1
         , dinnerInputMaterial "Portions" DinnerPortions model model.dinner.portions 2
         , dinnerInputMaterial "Tags" DinnerTags model model.dinner.tags 3
-        , dinnerInputMaterial "Url (optional)" DinnerUrl model model.dinner.url 4
+        , dinnerInputMaterial "Picture Url" DinnerPicUrl model model.dinner.picUrl 4
+        , dinnerInputMaterial "Url (optional)" DinnerUrl model model.dinner.url 5
         ]
 
 
@@ -188,7 +193,7 @@ dinnerViewCard model =
     Card.view
         [ --css "width" "auto"
           css "height" "auto"
-        , Elevation.e2
+        , Elevation.e8
         , css "margin" "0"
         , css "align-items" "center"
           --, css "background" "url('assets/elm.png') center / cover"
@@ -210,9 +215,9 @@ ingredientView : Model -> Html Msg
 ingredientView model =
     div []
         [ (Options.styled p [ Typo.title ] [ text "Ingredients" ])
-        , dinnerInputMaterial "Name of Ingredient" IngredientName model model.currentIngredient.name 5
-        , dinnerInputMaterial "Quantity" IngredientQty model model.currentIngredient.qty 6
-        , dinnerInputMaterial "Unit" IngredientUnit model model.currentIngredient.unit 7
+        , dinnerInputMaterial "Name of Ingredient" IngredientName model model.currentIngredient.name 10
+        , dinnerInputMaterial "Quantity" IngredientQty model model.currentIngredient.qty 11
+        , dinnerInputMaterial "Unit" IngredientUnit model model.currentIngredient.unit 12
         ]
 
 
@@ -221,10 +226,10 @@ ingredientViewCard model =
     Card.view
         [ css "width" "800px"
         , css "height" "auto"
-        , Elevation.e2
+        , Elevation.e8
         , css "margin" "50px 50px 50px 50px "
         , css "align-items" "center"
-          --, css "background" "url('assets/elm.png') center / cover"
+        --, Color.background (Color.color Color.LightBlue Color.S400)
         ]
         [ Card.text [ Card.expand ] []
           -- Filler
@@ -334,7 +339,7 @@ dinnerInputMaterial : String -> (String -> Msg) -> Model -> String -> Int -> Htm
 dinnerInputMaterial placeHolder msg model defValue group =
     div []
         [ Textfield.render Mdl
-            [ group ]
+            [1, group ]
             model.mdl
             [ Textfield.label placeHolder
             , Textfield.floatingLabel
@@ -439,6 +444,10 @@ setDinnerName value dinner =
 setDinnerUrl : String -> Dinner -> Dinner
 setDinnerUrl value dinner =
     { dinner | url = value }
+
+setDinnerPicUrl : String -> Dinner -> Dinner
+setDinnerPicUrl value dinner =
+    { dinner | picUrl = value }
 
 
 setDinnerPortions : String -> Dinner -> Dinner

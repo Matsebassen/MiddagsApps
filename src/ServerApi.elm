@@ -10,6 +10,7 @@ type alias Dinner =
     , url : String
     , tags : String
     , portions : String
+    , picUrl : String
     }
 
 
@@ -20,7 +21,7 @@ type alias Ingredient =
     }
 
 
-getRandomDinner : (Result Http.Error Dinner -> msg) -> Cmd msg
+getRandomDinner : (Result Http.Error (List Dinner) -> msg) -> Cmd msg
 getRandomDinner msg =
     let
         url =
@@ -28,7 +29,9 @@ getRandomDinner msg =
 
         --"http://middagbackend.azurewebsites.net/API/MiddagsApp/GetRandomDinner"
         request =
-            Http.get url dinnerDecoder
+            Http.get url (JsonD.list dinnerDecoder)
+        --request =
+        --    Http.get url dinnerDecoder
     in
         Http.send msg request
 
@@ -71,11 +74,12 @@ getIngredients dinnerName msg =
 
 dinnerDecoder : JsonD.Decoder Dinner
 dinnerDecoder =
-    JsonD.map4 Dinner
+    JsonD.map5 Dinner
         (JsonD.field "name" JsonD.string)
         (JsonD.field "url" JsonD.string)
         (JsonD.field "tags" JsonD.string)
         (JsonD.field "portions" JsonD.string)
+        (JsonD.field "picUrl" JsonD.string)
 
 
 ingredientDecoder : JsonD.Decoder Ingredient
@@ -93,6 +97,7 @@ dinnerEncoder dinner ingredients =
         , ( "url", Encode.string dinner.url )
         , ( "tags", Encode.string dinner.tags )
         , ( "portions", Encode.string dinner.portions )
+        , ( "picUrl", Encode.string dinner.picUrl )
         , ( "ingredients", Encode.list <| List.map ingredientEncoder ingredients )
         ]
 

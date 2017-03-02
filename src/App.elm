@@ -112,5 +112,5 @@ viewBody model =
         _ ->
             div []
                 [ br [] []
-                , Html.map AddDinnerMsg <| AddDinner.view model.addDinnerModel
+                , Html.map SearchDinnerMsg <| SearchDinner.view model.searchDinnerModel
                 ]
