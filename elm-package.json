@@ -7,7 +7,7 @@
         ".",
         "src/"
     ],
-    "exposed-modules": [],
+    "exposed-modules": ["Main"],
     "dependencies": {
         "JeremyBellows/elm-bootstrapify": "8.0.2 <= v < 9.0.0",
         "debois/elm-mdl": "8.1.0 <= v < 9.0.0",
