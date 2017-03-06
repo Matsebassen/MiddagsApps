@@ -25,11 +25,12 @@ getRandomDinner : (Result Http.Error (List Dinner) -> msg) -> Cmd msg
 getRandomDinner msg =
     let
         url =
-            "http://localhost:49203/API/MiddagsApp/GetRandomDinner"
+            "http://middagsapp.azurewebsites.net/API/MiddagsApp/GetRandomDinner"
 
-        --"http://middagbackend.azurewebsites.net/API/MiddagsApp/GetRandomDinner"
+        --"http://localhost:49203/API/MiddagsApp/GetRandomDinner"
         request =
             Http.get url (JsonD.list dinnerDecoder)
+
         --request =
         --    Http.get url dinnerDecoder
     in
@@ -40,7 +41,7 @@ addNewDinner : Dinner -> List Ingredient -> (Result Http.Error String -> msg) ->
 addNewDinner dinner ingredients msg =
     let
         url =
-            "http://localhost:49203/API/MiddagsApp/AddNewDinner"
+            "http://middagsapp.azurewebsites.net/API/MiddagsApp/AddNewDinner"
 
         request =
             Http.post url (Http.jsonBody (dinnerEncoder dinner ingredients)) jsonResponseDecoder
@@ -52,7 +53,7 @@ searchDinners : String -> (Result Http.Error (List Dinner) -> msg) -> Cmd msg
 searchDinners searchText msg =
     let
         url =
-            "http://localhost:49203/API/MiddagsApp/SearchDinner"
+            "http://middagsapp.azurewebsites.net/API/MiddagsApp/SearchDinner"
 
         request =
             Http.post url (Http.jsonBody (Encode.string searchText)) (JsonD.list dinnerDecoder)
@@ -64,12 +65,12 @@ getIngredients : String -> (Result Http.Error (List Ingredient) -> msg) -> Cmd m
 getIngredients dinnerName msg =
     let
         url =
-            "http://localhost:49203/API/MiddagsApp/GetIngredients"
+            "http://middagsapp.azurewebsites.net/API/MiddagsApp/GetIngredients"
 
         request =
             Http.post url (Http.jsonBody (Encode.string dinnerName)) (JsonD.list ingredientDecoder)
     in
-        Http.send msg request        
+        Http.send msg request
 
 
 dinnerDecoder : JsonD.Decoder Dinner
