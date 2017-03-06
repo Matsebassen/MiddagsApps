@@ -24,8 +24,8 @@ type alias Mdl =
     Material.Model
 
 
-init : String -> ( Model, Cmd Msg )
-init blabla =
+init : ( Model, Cmd Msg )
+init =
     ( Model 0 Material.model AddDinner.init SearchDinner.init, Cmd.none )
 
 
@@ -85,7 +85,7 @@ view model =
     Layout.render Mdl
         model.mdl
         [ Layout.fixedHeader
-        , Layout.onSelectTab SelectTab       
+        , Layout.onSelectTab SelectTab
         ]
         { header = [ h2 [ style [ ( "padding", "0rem" ) ] ] [ text "Middag" ] ]
         , drawer = []
