@@ -20,6 +20,7 @@ import Material.Elevation as Elevation
 import Material.Dialog as Dialog
 import Material.Icon as Icon
 import Material.Table as Table
+import Spinner
 
 
 --MODEL
@@ -28,10 +29,11 @@ import Material.Table as Table
 type alias Model =
     { dinner : Dinner
     , ingredients : List Ingredient
-    , inputIngredients : List String
+    , inputIngredients : String
     , ingredientFormat : IngredientFormat
     , snackbar : Snackbar.Model Int
     , mdl : Material.Model
+    , spinner : Spinner.Model
     }
 
 
@@ -59,6 +61,12 @@ type alias Mdl =
     Material.Model
 
 
+type alias TableIngredient =
+    { index : Int
+    , ingredient : Ingredient
+    }
+
+
 type IngredientFormat
     = NameQtyUnit
     | QtyUnitName
@@ -71,7 +79,7 @@ type IngredientFormat
 
 init : Model
 init =
-    Model (Dinner "" "" "" "" "") [ (Ingredient "" "" "") ] [] NameQtyUnit Snackbar.model Material.model
+    Model (Dinner "" "" "" "" "") [ (Ingredient "" "" "") ] "" NameQtyUnit Snackbar.model Material.model Spinner.init
 
 
 
@@ -85,7 +93,7 @@ update msg model =
             ( model, addNewDinner model.dinner model.ingredients JsonResponse )
 
         JsonResponse (Ok response) ->
-            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "") [ (Ingredient "" "" "") ] [] NameQtyUnit Snackbar.model model.mdl)
+            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "") [ (Ingredient "" "" "") ] "" NameQtyUnit Snackbar.model model.mdl Spinner.init)
 
         JsonResponse (Err error) ->
             case error of
@@ -169,6 +177,7 @@ view model =
             ]
             [ dinnerViewCard model
             , ingredientViewCard model
+            , Spinner.view Spinner.defaultConfig model.spinner
             ]
         , p [] []
         , materialButton model AddDinner "Add Dinner to DB" 2

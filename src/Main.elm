@@ -1,4 +1,5 @@
 module Main exposing (..)
+
 {-| The main entry of application
 
 # Definition
@@ -8,6 +9,7 @@ module Main exposing (..)
 
 import App exposing (..)
 import Html exposing (program)
+
 
 {-|
 -}

@@ -5,11 +5,11 @@ module App exposing (..)
 import AddDinner
 import SearchDinner
 import Html exposing (..)
-import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import Material
 import Material.Layout as Layout
 import Material.Color as Color
+import Spinner
 
 
 type alias Model =
@@ -38,6 +38,8 @@ type Msg
     | SelectTab Int
     | AddDinnerMsg AddDinner.Msg
     | SearchDinnerMsg SearchDinner.Msg
+    | SpinnerMsgAdd Spinner.Msg
+    | SpinnerMsgSearch Spinner.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -65,6 +67,20 @@ update msg model =
                 { model | searchDinnerModel = subMdl }
                     ! [ Cmd.map SearchDinnerMsg subCmd ]
 
+        SpinnerMsgAdd msg ->
+            let
+                spinnerModel =
+                    Spinner.update msg model.addDinnerModel.spinner
+            in
+                { model | addDinnerModel = setAddDinnerModel spinnerModel model.addDinnerModel } ! []
+
+        SpinnerMsgSearch msg ->
+            let
+                spinnerModel =
+                    Spinner.update msg model.searchDinnerModel.spinner
+            in
+                { model | searchDinnerModel = setSearchDinnerModel spinnerModel model.searchDinnerModel } ! []
+
 
 
 -- SUBSCRIPTIONS
@@ -72,7 +88,20 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    case model.selectedTab of
+        0 ->
+            case model.searchDinnerModel.waiting of
+                True ->
+                    Sub.map SpinnerMsgSearch Spinner.subscription
+
+                False ->
+                    Sub.none
+
+        1 ->
+            Sub.map SpinnerMsgAdd Spinner.subscription
+
+        _ ->
+            Sub.none
 
 
 
@@ -114,3 +143,13 @@ viewBody model =
                 [ br [] []
                 , Html.map SearchDinnerMsg <| SearchDinner.view model.searchDinnerModel
                 ]
+
+
+setAddDinnerModel : Spinner.Model -> AddDinner.Model -> AddDinner.Model
+setAddDinnerModel spinnerModel dinnerModel =
+    { dinnerModel | spinner = spinnerModel }
+
+
+setSearchDinnerModel : Spinner.Model -> SearchDinner.Model -> SearchDinner.Model
+setSearchDinnerModel spinnerModel dinnerModel =
+    { dinnerModel | spinner = spinnerModel }

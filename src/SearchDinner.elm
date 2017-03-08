@@ -16,6 +16,7 @@ import Material.Textfield as Textfield
 import Material.Color as Color
 import Material.Helpers exposing (map1st, map2nd, delay, pure, cssTransitionStep)
 import Material.Snackbar as Snackbar
+import Spinner
 
 
 --MODEL
@@ -28,8 +29,10 @@ type alias Model =
     , ingredients : List Ingredient
     , searchText : String
     , raised : Int
+    , waiting : Bool
     , snackbar : Snackbar.Model Int
-    , mdl : Material.Model    
+    , mdl : Material.Model
+    , spinner : Spinner.Model
     }
 
 
@@ -43,7 +46,7 @@ type alias Mdl =
 
 init : Model
 init =
-    Model "" (Dinner "" "" "" "" "") [] [] "" -1 Snackbar.model Material.model
+    Model "" (Dinner "" "" "" "" "") [] [] "" -1 False Snackbar.model Material.model Spinner.init
 
 
 
@@ -69,7 +72,7 @@ update msg model =
             ( model, getRandomDinner SearchResults )
 
         SearchResults (Ok dinnersFound) ->
-            ( { model | dinners = dinnersFound }, Cmd.none )
+            ( { model | dinners = dinnersFound, waiting = False }, Cmd.none )
 
         SearchResults (Err error) ->
             case error of
@@ -80,7 +83,7 @@ update msg model =
                     ( { model | statusMessage = "The request timed out" }, Cmd.none )
 
                 Http.NetworkError ->
-                    addToast ( Snackbar.toast 1 "Can't contact server") model
+                    addToast (Snackbar.toast 1 "Can't contact server") model
 
                 Http.BadStatus badResponse ->
                     ( { model | statusMessage = "Bad status. Does that make sense to you?" ++ toString badResponse }, Cmd.none )
@@ -92,10 +95,10 @@ update msg model =
             ( { model | searchText = searchTxt }, Cmd.none )
 
         SearchDinners ->
-            ( model, searchDinners model.searchText SearchResults )
-        
+            ( { model | waiting = True }, searchDinners model.searchText SearchResults )
+
         SearchIngredients dinner ->
-            ( model, getIngredients dinner.name SearchIngredientsResult )    
+            ( model, getIngredients dinner.name SearchIngredientsResult )
 
         SearchIngredientsResult (Ok ingredientsFound) ->
             ( { model | ingredients = ingredientsFound }, Cmd.none )
@@ -120,10 +123,10 @@ update msg model =
         Raise k ->
             { model | raised = k } ! []
 
-        Snackbar msg_ -> 
-            Snackbar.update msg_ model.snackbar 
-            |> map1st (\s -> { model | snackbar = s })
-            |> map2nd (Cmd.map Snackbar)            
+        Snackbar msg_ ->
+            Snackbar.update msg_ model.snackbar
+                |> map1st (\s -> { model | snackbar = s })
+                |> map2nd (Cmd.map Snackbar)
 
         Mdl msg_ ->
             Material.update Mdl msg_ model
@@ -135,37 +138,42 @@ view model =
         [ h3 [ style [ ( "padding", "0rem" ) ] ] [ text model.statusMessage ]
         , materialInput "Search..." SearchText model model.searchText 1
         , materialButton model SearchDinners "Search" 1
-        , materialButton model GetRandomDinner "I feel lucky" 2 
-        , div[] 
-        [ List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid[]]
+        , materialButton model GetRandomDinner "I feel lucky" 2
+        , div []
+            [ List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid [] ]
         , dialogView model
         , Snackbar.view model.snackbar |> Html.map Snackbar
+        , if model.waiting then
+            Spinner.view Spinner.defaultConfig model.spinner
+          else
+            div [] []
         ]
 
 
 dialogView : Model -> Html Msg
-dialogView model = 
-  Dialog.view
-    [ ]
-    [ Dialog.title [] [ text "Ingredients" ]
-    , Dialog.content [] 
-        [ p [] 
-            [ ingredientTable model ]
+dialogView model =
+    Dialog.view
+        []
+        [ Dialog.title [] [ text "Ingredients" ]
+        , Dialog.content []
+            [ p []
+                [ ingredientTable model ]
+            ]
+        , Dialog.actions []
+            [ Button.render Mdl
+                [ 0 ]
+                model.mdl
+                [ Dialog.closeOn "click" ]
+                [ text "Close" ]
+            ]
         ]
-    , Dialog.actions [ ]
-      [ Button.render Mdl [0] model.mdl
-          [ Dialog.closeOn "click" ]
-          [ text "Close" ]
-      ]
-    ]
 
 
-dinnerCardCell :  Model -> Dinner -> Int -> Material.Grid.Cell Msg
+dinnerCardCell : Model -> Dinner -> Int -> Material.Grid.Cell Msg
 dinnerCardCell model dinner i =
     cell (cellStyle 256)
-    [
-        cardView model dinner i
-    ]
+        [ cardView model dinner i
+        ]
 
 
 dynamic : Int -> Model -> Options.Style Msg
@@ -181,47 +189,46 @@ dynamic k model =
         |> Options.many
 
 
-cardView :  Model -> Dinner -> Int -> Html Msg
+cardView : Model -> Dinner -> Int -> Html Msg
 cardView model dinner i =
     div []
-    [
-    Card.view
-        [ dynamic i  model,
-            css "width" "256px"
-            ,css "height" "340px"
-        --, Color.background (Color.color Color.Teal Color.S400)
-        ]
-        [ Card.title
-            [ css "background" ("url('" ++ dinner.picUrl ++ "') center / cover")
-            , css "height" "256px"
-            , css "padding" "0"
-              -- Clear default padding to encompass scrim
+        [ Card.view
+            [ dynamic i model
+            , css "width" "256px"
+            , css "height" "340px"
+              --, Color.background (Color.color Color.Teal Color.S400)
             ]
-            [ Card.head
-                [ white
-                , Options.scrim 0.75
-                , css "padding" "16px"
-                  -- Restore default padding inside scrim
-                , css "width" "100%"
+            [ Card.title
+                [ css "background" ("url('" ++ dinner.picUrl ++ "') center / cover")
+                , css "height" "256px"
+                , css "padding" "0"
+                  -- Clear default padding to encompass scrim
                 ]
-                [ text dinner.name ]
+                [ Card.head
+                    [ white
+                    , Options.scrim 0.75
+                    , css "padding" "16px"
+                      -- Restore default padding inside scrim
+                    , css "width" "100%"
+                    ]
+                    [ text dinner.name ]
+                ]
+            , Card.text []
+                [ text (dinner.portions ++ " portions - " ++ dinner.tags) ]
+            , Card.actions
+                [ Card.border ]
+                [ Button.render Mdl
+                    [ 1, 0, i ]
+                    model.mdl
+                    [ Button.ripple, Button.accent, Dialog.openOn "click", Options.onClick (SearchIngredients dinner) ]
+                    [ text "Ingredients" ]
+                , Button.render Mdl
+                    [ 1, 1, i ]
+                    model.mdl
+                    [ Button.ripple, Button.accent, Button.link dinner.url, Options.attribute <| Html.Attributes.target "_blank" ]
+                    [ text "Website" ]
+                ]
             ]
-        , Card.text []
-            [ text (dinner.portions ++ " portions - "++ dinner.tags) ]
-        , Card.actions
-            [ Card.border ]
-            [ Button.render Mdl
-                [ 1, 0, i ]
-                model.mdl
-                [ Button.ripple, Button.accent, Dialog.openOn "click", Options.onClick (SearchIngredients dinner) ]
-                [ text "Ingredients" ]
-            , Button.render Mdl
-                [ 1, 1, i ]
-                model.mdl
-                [ Button.ripple, Button.accent, Button.link dinner.url, Options.attribute <| Html.Attributes.target "_blank" ]
-                [ text "Website" ]
-            ]
-        ]
         ]
 
 
@@ -229,32 +236,35 @@ white : Options.Property c m
 white =
     Color.text Color.white
 
-cellStyle : Int -> List (Options.Style a)
-cellStyle h = 
-  [ css "text-sizing" "border-box"
-  --, css "background-color" "teal"
-  , css "padding-left" "8px"
-  , css "padding-top" "4px"
-  , css "color" "teal"
-  , css "width" "256px"
-  , Material.Grid.size Tablet 6
-  , Material.Grid.size Desktop 12
-  , Material.Grid.size Phone 4
-  ]
 
-ingredientTable :  Model -> Html Msg
+cellStyle : Int -> List (Options.Style a)
+cellStyle h =
+    [ css "text-sizing" "border-box"
+      --, css "background-color" "teal"
+    , css "padding-left" "8px"
+    , css "padding-top" "4px"
+    , css "color" "teal"
+    , css "width" "256px"
+    , Material.Grid.size Tablet 6
+    , Material.Grid.size Desktop 12
+    , Material.Grid.size Phone 4
+    ]
+
+
+ingredientTable : Model -> Html Msg
 ingredientTable model =
-  table [ align "center" ]
-            [ thead []
-                [ tr []
-                    [ th [] [ text "Name" ]
-                    , th [] [ text "Quantity" ]
-                    , th [] [ text "Unit" ]
-                    , th [] []
-                    ]
+    table [ align "center" ]
+        [ thead []
+            [ tr []
+                [ th [] [ text "Name" ]
+                , th [] [ text "Quantity" ]
+                , th [] [ text "Unit" ]
+                , th [] []
                 ]
-            , tbody [] (List.map renderIngredients model.ingredients)
             ]
+        , tbody [] (List.map renderIngredients model.ingredients)
+        ]
+
 
 renderIngredients : Ingredient -> Html Msg
 renderIngredients ingredient =
@@ -262,24 +272,26 @@ renderIngredients ingredient =
         [ td [ align "left" ] [ text ingredient.name ]
         , td [ align "left" ] [ text ingredient.qty ]
         , td [ align "left" ] [ text ingredient.unit ]
-        --, td [ align "left" ] [ button [ onClick (EditIngredient ingredient) ] [ text "edit" ] ]
-        --, td [ align "left" ] [ button [ onClick (RemoveIngredient ingredient) ] [ text "remove" ] ]
+          --, td [ align "left" ] [ button [ onClick (EditIngredient ingredient) ] [ text "edit" ] ]
+          --, td [ align "left" ] [ button [ onClick (RemoveIngredient ingredient) ] [ text "remove" ] ]
         ]
 
-addToast : (Snackbar.Contents Int) -> Model -> (Model, Cmd Msg)
+
+addToast : Snackbar.Contents Int -> Model -> ( Model, Cmd Msg )
 addToast f model =
-  let 
-    (snackbar_, effect) = 
-      Snackbar.add (f) model.snackbar
-        |> map2nd (Cmd.map Snackbar)
-    model_ = 
-      { model 
-      | snackbar = snackbar_
-      }
-  in 
-    ( model_
-    , effect       
-    )
+    let
+        ( snackbar_, effect ) =
+            Snackbar.add (f) model.snackbar
+                |> map2nd (Cmd.map Snackbar)
+
+        model_ =
+            { model
+                | snackbar = snackbar_
+            }
+    in
+        ( model_
+        , effect
+        )
 
 
 materialButton : Model -> Msg -> String -> Int -> Html Msg
