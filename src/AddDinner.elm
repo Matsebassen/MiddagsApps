@@ -1,6 +1,7 @@
 module AddDinner exposing (..)
 
 import ServerApi exposing (Dinner, Ingredient, getRandomDinner, addNewDinner)
+import Css as Css exposing (..) 
 import Html exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
 import Json.Decode as JsonD
@@ -173,13 +174,7 @@ view : Model -> Html Msg
 view model =
     div []
         [ Options.div
-            [ css "display" "flex"
-            , css "flex-flow" "column wrap"
-            , css "align-items" "center"
-            , css "width" "100%"
-            , css "margin-top" "2rem"
-            , css "justify-content" "center"
-            ]
+            flexFlowColumnAlignCenter
             [ dinnerViewCard model
             , ingredientViewCard model
             , if (model.waiting) then Loading.indeterminate else div[][]
@@ -206,12 +201,7 @@ dinnerView model =
 dinnerViewCard : Model -> Html Msg
 dinnerViewCard model =
     Card.view
-        [ css "width" "450px"
-        , css "height" "auto"
-        , Elevation.e8
-        , css "margin" "0"
-        , css "align-items" "center"
-        ]
+        (Elevation.e8 :: Css.addDinnerCardCss)        
         [ Card.text [ Card.expand ] []
           -- Filler
         , Card.text
@@ -227,7 +217,7 @@ dinnerViewCard model =
 ingredientView : Model -> Html Msg
 ingredientView model =
     div []
-        [ Options.div [ css "display" "flex", css "flex-flow" "row wrap", css "justify-content" "center" ]
+        [ Options.div Css.flexFlowRowAlignCenter
             [ (Options.styled p [ Typo.title ] [ text "Ingredients" ])
             , materialButtonDiagOpen model InputAsList "playlist_add"
             ]
@@ -238,25 +228,16 @@ ingredientView model =
 ingredientViewCard : Model -> Html Msg
 ingredientViewCard model =
     Card.view
-        [ css "width" "450px"
-        , css "height" "auto"
-        , Elevation.e8
-        , css "margin" "50px 50px 50px 50px "
-        , css "align-items" "center"
-        , css "justify-content" "center"
-        ]
+        ([Elevation.e8] ++ Css.addDinnerCardCss)   
         [ Card.text [ Card.expand ] []
           -- Filler
         , Card.text
-            [ css "background" "rgba(0, 0, 0, 0)" ]
+            []
             -- Non-gradient scrim
             [ Options.span
                 [ black, Typo.title, Typo.contrast 1.0 ]
                 [ Options.div
-                    [ css "display" "flex"
-                    , css "flex-direction" "row"
-                    , css "width" "100%"
-                    ]
+                    Css.flexFlowRowAlignCenter
                     [ div []
                         [ ingredientView model
                         , materialMiniFab model AddIngredient "add_circle"
@@ -390,7 +371,7 @@ materialButton model msg butText group =
         , Button.colored
         , Button.ripple
         , Options.onClick msg
-        , css "margin" "0 12px"
+        , css "margin" "40px 12px"
         ]
         [ text butText ]
 

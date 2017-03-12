@@ -2,6 +2,7 @@ module SearchDinner exposing (..)
 
 import ServerApi exposing (Dinner, Ingredient, getRandomDinner, searchDinners, addNewDinner, getIngredients)
 import Html exposing (..)
+import Css as Css exposing (..) 
 import Html.Events exposing (onClick, onInput, keyCode, on)
 import Html.Attributes exposing (..)
 import Http exposing (..)
@@ -143,16 +144,10 @@ update msg model =
 view : Model -> Html Msg
 view model =
     Options.div
-            [ css "display" "flex"
-            , css "flex-flow" "column wrap"
-            , css "align-items" "center"
-            , css "justify-content" "center"
-            ]
+            Css.flexFlowColumnAlignCenter
         [ h3 [ style [ ( "padding", "0rem" ) ] ] [ text model.statusMessage ]        
         , Options.div
-            [ css "display" "flex"
-            , css "flex-flow" "row wrap"
-            ]            
+            Css.flexFlowRowAlignCenter         
             [materialInput "Search..." SearchText model model.searchText 1        
             ,materialMiniFab model SearchDinners "search"             
             ]
@@ -186,7 +181,7 @@ dialogView model =
 
 dinnerCardCell : Model -> Dinner -> Int -> Material.Grid.Cell Msg
 dinnerCardCell model dinner i =
-    cell (cellStyle 256)
+    cell (Css.cellStyle 256)
         [ cardView model dinner i
         ]
 
@@ -211,7 +206,6 @@ cardView model dinner i =
             [ dynamic i model
             , css "width" "256px"
             , css "height" "340px"
-              --, Color.background (Color.color Color.Teal Color.S400)
             ]
             [ Card.title
                 [ css "background" ("url('" ++ dinner.picUrl ++ "') center / cover")
@@ -252,19 +246,6 @@ cardView model dinner i =
 white : Options.Property c m
 white =
     Color.text Color.white
-
-
-cellStyle : Int -> List (Options.Style a)
-cellStyle h =
-    [ css "text-sizing" "border-box"
-    , css "padding-left" "8px"
-    , css "padding-top" "4px"
-    , css "color" "teal"
-    , css "width" "256px"
-    , Material.Grid.size Tablet 6
-    , Material.Grid.size Desktop 12
-    , Material.Grid.size Phone 4
-    ]
 
 
 ingredientTable : Model -> Html Msg
@@ -322,7 +303,7 @@ materialButton model msg butText group =
         , Button.colored
         , Button.ripple
         , Options.onClick msg
-        , css "margin" "0 12px"
+        , css "margin-top" "12px"
         ]
         [ text butText ]
 
