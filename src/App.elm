@@ -9,7 +9,8 @@ import Html.Attributes exposing (..)
 import Material
 import Material.Layout as Layout
 import Material.Color as Color
-import Spinner
+import Material.Button as Button
+import Material.Options as Options exposing (css)
 
 
 type alias Model =
@@ -38,8 +39,6 @@ type Msg
     | SelectTab Int
     | AddDinnerMsg AddDinner.Msg
     | SearchDinnerMsg SearchDinner.Msg
-    | SpinnerMsgAdd Spinner.Msg
-    | SpinnerMsgSearch Spinner.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -67,20 +66,6 @@ update msg model =
                 { model | searchDinnerModel = subMdl }
                     ! [ Cmd.map SearchDinnerMsg subCmd ]
 
-        SpinnerMsgAdd msg ->
-            let
-                spinnerModel =
-                    Spinner.update msg model.addDinnerModel.spinner
-            in
-                { model | addDinnerModel = setAddDinnerModel spinnerModel model.addDinnerModel } ! []
-
-        SpinnerMsgSearch msg ->
-            let
-                spinnerModel =
-                    Spinner.update msg model.searchDinnerModel.spinner
-            in
-                { model | searchDinnerModel = setSearchDinnerModel spinnerModel model.searchDinnerModel } ! []
-
 
 
 -- SUBSCRIPTIONS
@@ -88,20 +73,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model.selectedTab of
-        0 ->
-            case model.searchDinnerModel.waiting of
-                True ->
-                    Sub.map SpinnerMsgSearch Spinner.subscription
-
-                False ->
-                    Sub.none
-
-        1 ->
-            Sub.map SpinnerMsgAdd Spinner.subscription
-
-        _ ->
-            Sub.none
+    Sub.none
 
 
 
@@ -110,14 +82,12 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    --Material.Scheme.topWithScheme Color.Teal Color.LightGreen <|
     Layout.render Mdl
         model.mdl
-        [ Layout.fixedHeader
-        , Layout.onSelectTab SelectTab
+        [ Layout.onSelectTab SelectTab
         ]
         { header = [ h2 [ style [ ( "padding", "0rem" ) ] ] [ text "Middag" ] ]
-        , drawer = []
+        , drawer = [materialFlatButton model "Search" 0, materialFlatButton model "Add Dinner" 1 ]
         , tabs = ( [ text "Search", text "Add Dinner" ], [ Color.background (Color.color Color.Teal Color.S600) ] )
         , main = [ viewBody model ]
         }
@@ -144,12 +114,15 @@ viewBody model =
                 , Html.map SearchDinnerMsg <| SearchDinner.view model.searchDinnerModel
                 ]
 
+materialFlatButton : Model -> String -> Int -> Html Msg
+materialFlatButton model butTxt tabNo =
+    Button.render Mdl 
+        [tabNo] 
+        model.mdl
+        [ Button.colored
+        , Button.ripple
+        , Options.onClick (SelectTab tabNo)
+        , css "margin-top" "20px"
+        ]
+        [ text butTxt]
 
-setAddDinnerModel : Spinner.Model -> AddDinner.Model -> AddDinner.Model
-setAddDinnerModel spinnerModel dinnerModel =
-    { dinnerModel | spinner = spinnerModel }
-
-
-setSearchDinnerModel : Spinner.Model -> SearchDinner.Model -> SearchDinner.Model
-setSearchDinnerModel spinnerModel dinnerModel =
-    { dinnerModel | spinner = spinnerModel }

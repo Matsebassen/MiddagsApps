@@ -2,9 +2,10 @@ module SearchDinner exposing (..)
 
 import ServerApi exposing (Dinner, Ingredient, getRandomDinner, searchDinners, addNewDinner, getIngredients)
 import Html exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onInput, keyCode, on)
 import Html.Attributes exposing (..)
 import Http exposing (..)
+import Json.Decode as JsonD
 import Material
 import Material.Elevation as Elevation
 import Material.Dialog as Dialog
@@ -16,7 +17,8 @@ import Material.Textfield as Textfield
 import Material.Color as Color
 import Material.Helpers exposing (map1st, map2nd, delay, pure, cssTransitionStep)
 import Material.Snackbar as Snackbar
-import Spinner
+import Material.Spinner as Loading
+import Material.Icon as Icon
 
 
 --MODEL
@@ -32,7 +34,6 @@ type alias Model =
     , waiting : Bool
     , snackbar : Snackbar.Model Int
     , mdl : Material.Model
-    , spinner : Spinner.Model
     }
 
 
@@ -46,7 +47,7 @@ type alias Mdl =
 
 init : Model
 init =
-    Model "" (Dinner "" "" "" "" "") [] [] "" -1 False Snackbar.model Material.model Spinner.init
+    Model "" (Dinner "" "" "" "" "") [] [] "" -1 False Snackbar.model Material.model
 
 
 
@@ -60,6 +61,7 @@ type Msg
     | SearchDinners
     | SearchIngredients Dinner
     | SearchIngredientsResult (Result Http.Error (List Ingredient))
+    | KeyDown Int
     | Raise Int
     | Snackbar (Snackbar.Msg Int)
     | Mdl (Material.Msg Msg)
@@ -69,7 +71,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GetRandomDinner ->
-            ( model, getRandomDinner SearchResults )
+            ( {model | waiting = True}, getRandomDinner SearchResults )
 
         SearchResults (Ok dinnersFound) ->
             ( { model | dinners = dinnersFound, waiting = False }, Cmd.none )
@@ -119,6 +121,12 @@ update msg model =
 
                 Http.BadPayload debugMessage badResponse ->
                     ( { model | statusMessage = "My payload is bad. Really bad. Also, I got a message for you: " ++ debugMessage }, Cmd.none )
+        
+        KeyDown key ->
+            if key == 13 then
+                ( { model | waiting = True }, searchDinners model.searchText SearchResults )
+            else
+                (model, Cmd.none)
 
         Raise k ->
             { model | raised = k } ! []
@@ -134,19 +142,26 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ h3 [ style [ ( "padding", "0rem" ) ] ] [ text model.statusMessage ]
-        , materialInput "Search..." SearchText model model.searchText 1
-        , materialButton model SearchDinners "Search" 1
+    Options.div
+            [ css "display" "flex"
+            , css "flex-flow" "column wrap"
+            , css "align-items" "center"
+            , css "justify-content" "center"
+            ]
+        [ h3 [ style [ ( "padding", "0rem" ) ] ] [ text model.statusMessage ]        
+        , Options.div
+            [ css "display" "flex"
+            , css "flex-flow" "row wrap"
+            ]            
+            [materialInput "Search..." SearchText model model.searchText 1        
+            ,materialMiniFab model SearchDinners "search"             
+            ]
         , materialButton model GetRandomDinner "I feel lucky" 2
-        , div []
-            [ List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid [] ]
+        , br[] []
+        , Loading.spinner [Loading.active model.waiting]
+        , List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid [css "justify-content" "center"]         
         , dialogView model
-        , Snackbar.view model.snackbar |> Html.map Snackbar
-        , if model.waiting then
-            Spinner.view Spinner.defaultConfig model.spinner
-          else
-            div [] []
+        , Snackbar.view model.snackbar |> Html.map Snackbar        
         ]
 
 
@@ -225,7 +240,9 @@ cardView model dinner i =
                 , Button.render Mdl
                     [ 1, 1, i ]
                     model.mdl
-                    [ Button.ripple, Button.accent, Button.link dinner.url, Options.attribute <| Html.Attributes.target "_blank" ]
+                    [ Button.ripple
+                    ,if (String.length dinner.url < 1) then  Button.disabled else Button.link dinner.url
+                    ,Button.accent,  Options.attribute <| Html.Attributes.target "_blank" ]
                     [ text "Website" ]
                 ]
             ]
@@ -240,7 +257,6 @@ white =
 cellStyle : Int -> List (Options.Style a)
 cellStyle h =
     [ css "text-sizing" "border-box"
-      --, css "background-color" "teal"
     , css "padding-left" "8px"
     , css "padding-top" "4px"
     , css "color" "teal"
@@ -272,8 +288,6 @@ renderIngredients ingredient =
         [ td [ align "left" ] [ text ingredient.name ]
         , td [ align "left" ] [ text ingredient.qty ]
         , td [ align "left" ] [ text ingredient.unit ]
-          --, td [ align "left" ] [ button [ onClick (EditIngredient ingredient) ] [ text "edit" ] ]
-          --, td [ align "left" ] [ button [ onClick (RemoveIngredient ingredient) ] [ text "remove" ] ]
         ]
 
 
@@ -292,6 +306,11 @@ addToast f model =
         ( model_
         , effect
         )
+
+onKeyDown : (Int -> msg) -> Attribute msg
+onKeyDown tagger =
+    on "keydown" (JsonD.map tagger keyCode)
+
 
 
 materialButton : Model -> Msg -> String -> Int -> Html Msg
@@ -318,7 +337,20 @@ materialInput placeHolder msg model defValue group =
             , Textfield.floatingLabel
             , Textfield.text_
             , Options.onInput msg
+            , Options.attribute (onKeyDown KeyDown)
             , Textfield.value defValue
             ]
             []
         ]
+
+materialMiniFab : Model -> Msg -> String -> Html Msg
+materialMiniFab model msg icon =
+    Button.render Mdl
+        [ 4, 1 ]
+        model.mdl
+        [ Options.onClick (msg)
+        , Button.minifab
+        , Button.colored
+        , css "margin-top" "15px"
+        ]
+        [ Icon.view icon [ Icon.size24] ]

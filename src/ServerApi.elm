@@ -27,7 +27,7 @@ getRandomDinner msg =
         url =
             "http://middagsapp.azurewebsites.net/API/MiddagsApp/GetRandomDinner"
 
-        --"http://localhost:49203/API/MiddagsApp/GetRandomDinner"
+        --"http://middagsapp.azurewebsites.net/API/MiddagsApp/GetRandomDinner"
         request =
             Http.get url (JsonD.list dinnerDecoder)
 
