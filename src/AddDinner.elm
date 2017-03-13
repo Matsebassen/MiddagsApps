@@ -77,7 +77,7 @@ type alias TableIngredient =
 
 init : Model
 init =
-    Model (Dinner "" "" "" "" "") [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model Material.model
+    Model (Dinner "" "" "" "" "" 0) [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model Material.model
 
 
 
@@ -91,7 +91,7 @@ update msg model =
             ( { model | waiting = True }, addNewDinner model.dinner (tableIngredientsToIngredients model.ingredients) JsonResponse )
 
         JsonResponse (Ok response) ->
-            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "") [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model model.mdl)
+            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "" 0) [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model model.mdl)
 
         JsonResponse (Err error) ->
             case error of

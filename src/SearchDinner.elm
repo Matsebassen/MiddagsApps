@@ -1,6 +1,6 @@
 module SearchDinner exposing (..)
 
-import ServerApi exposing (Dinner, Ingredient, getRandomDinner, searchDinners, addNewDinner, getIngredients)
+import ServerApi exposing (Dinner, Ingredient, getRandomDinner, searchDinners, addNewDinner, getIngredients, editDinner)
 import Html exposing (..)
 import Css as Css exposing (..) 
 import Html.Events exposing (onClick, onInput, keyCode, on)
@@ -27,12 +27,13 @@ import Material.Icon as Icon
 
 type alias Model =
     { statusMessage : String
-    , dinner : Dinner
+    , currentDinner : Dinner
     , dinners : List Dinner
     , ingredients : List Ingredient
     , searchText : String
     , raised : Int
     , waiting : Bool
+    , dialogType : DialogType
     , snackbar : Snackbar.Model Int
     , mdl : Material.Model
     }
@@ -41,6 +42,12 @@ type alias Model =
 type alias Mdl =
     Material.Model
 
+type DialogType 
+    = ShowIngredients
+    | EditDinner
+    
+    
+
 
 
 --INIT
@@ -48,7 +55,7 @@ type alias Mdl =
 
 init : Model
 init =
-    Model "" (Dinner "" "" "" "" "") [] [] "" -1 False Snackbar.model Material.model
+    Model "" (Dinner "" "" "" "" "" 0) [] [] "" -1 False ShowIngredients Snackbar.model Material.model
 
 
 
@@ -62,10 +69,18 @@ type Msg
     | SearchDinners
     | SearchIngredients Dinner
     | SearchIngredientsResult (Result Http.Error (List Ingredient))
+    | EditDinnerDialog Dinner
+    | EditDinnerInDb
+    | EditDinnerResult (Result Http.Error String)
     | KeyDown Int
     | Raise Int
     | Snackbar (Snackbar.Msg Int)
     | Mdl (Material.Msg Msg)
+    | DinnerName String
+    | DinnerUrl String
+    | DinnerPicUrl String
+    | DinnerTags String
+    | DinnerPortions String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -101,12 +116,24 @@ update msg model =
             ( { model | waiting = True }, searchDinners model.searchText SearchResults )
 
         SearchIngredients dinner ->
-            ( model, getIngredients dinner.name SearchIngredientsResult )
+            ( { model | dialogType = ShowIngredients, currentDinner = dinner} , getIngredients dinner.name SearchIngredientsResult )
 
         SearchIngredientsResult (Ok ingredientsFound) ->
             ( { model | ingredients = ingredientsFound }, Cmd.none )
 
         SearchIngredientsResult (Err error) ->
+            (model, Cmd.none)
+        
+        EditDinnerDialog dinner ->
+            ( { model | dialogType = EditDinner, currentDinner = dinner} , Cmd.none )
+        
+        EditDinnerInDb ->
+            (model, editDinner model.currentDinner [] EditDinnerResult)
+
+        EditDinnerResult (Ok response) ->
+            addToast (Snackbar.toast 1 response) { model | waiting = False }
+
+        EditDinnerResult (Err error) ->
             case error of
                 Http.BadUrl badUrlMsg ->
                     ( { model | statusMessage = "That was a shitty url. Message: " ++ badUrlMsg }, Cmd.none )
@@ -115,14 +142,15 @@ update msg model =
                     ( { model | statusMessage = "The request timed out" }, Cmd.none )
 
                 Http.NetworkError ->
-                    ( { model | statusMessage = "There seems to be a network error, Sir" }, Cmd.none )
+                    addToast (Snackbar.toast 1 "Can't contact server") { model | waiting = False }
 
                 Http.BadStatus badResponse ->
-                    ( { model | statusMessage = "Bad status. Does that make sense to you?" ++ toString badResponse }, Cmd.none )
+                    addToast (Snackbar.toast 1 badResponse.body) { model | waiting = False }
 
                 Http.BadPayload debugMessage badResponse ->
-                    ( { model | statusMessage = "My payload is bad. Really bad. Also, I got a message for you: " ++ debugMessage }, Cmd.none )
-        
+                    addToast (Snackbar.toast 1 badResponse.body) { model | waiting = False }
+
+
         KeyDown key ->
             if key == 13 then
                 ( { model | waiting = True }, searchDinners model.searchText SearchResults )
@@ -139,6 +167,21 @@ update msg model =
 
         Mdl msg_ ->
             Material.update Mdl msg_ model
+        
+        DinnerName newName ->
+            ( { model | currentDinner = setDinnerName newName model.currentDinner }, Cmd.none )
+
+        DinnerUrl newUrl ->
+            ( { model | currentDinner = setDinnerUrl newUrl model.currentDinner }, Cmd.none )
+
+        DinnerPicUrl newUrl ->
+            ( { model | currentDinner = setDinnerPicUrl newUrl model.currentDinner }, Cmd.none )
+
+        DinnerTags newTags ->
+            ( { model | currentDinner = setDinnerTags newTags model.currentDinner }, Cmd.none )
+
+        DinnerPortions newPortions ->
+            ( { model | currentDinner = setDinnerPortions newPortions model.currentDinner }, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -162,22 +205,58 @@ view model =
 
 dialogView : Model -> Html Msg
 dialogView model =
+    case model.dialogType of
+        ShowIngredients ->
+            showIngredientView model
+        EditDinner ->
+            editDinnerView model
+
+
+showIngredientView : Model -> Html Msg
+showIngredientView model =
     Dialog.view
         []
         [ Dialog.title [] [ text "Ingredients" ]
         , Dialog.content []
             [ p []
-                [ ingredientTable model ]
+            [ ingredientTable model ]
             ]
         , Dialog.actions []
             [ Button.render Mdl
-                [ 0 ]
-                model.mdl
-                [ Dialog.closeOn "click" ]
-                [ text "Close" ]
+            [ 0 ]
+            model.mdl
+            [ Dialog.closeOn "click" ]
+            [ text "Close" ]
             ]
         ]
 
+editDinnerView : Model -> Html Msg
+editDinnerView model = 
+    Dialog.view
+        [] 
+        [ Dialog.title [] [ text "Edit Dinner" ]
+        , Dialog.content []
+            [ materialInput "Name" DinnerName model model.currentDinner.name 1
+            , materialInput "Portions" DinnerPortions model model.currentDinner.portions 2
+            , materialInput "Tags" DinnerTags model model.currentDinner.tags 3
+            , materialInput "Picture Url" DinnerPicUrl model model.currentDinner.picUrl 4
+            , materialInput "Url (optional)" DinnerUrl model model.currentDinner.url 5
+            ]
+        , Dialog.actions []
+            [ Button.render Mdl
+            [ 20, 1 ]
+            model.mdl
+            [ Dialog.closeOn "click" ]
+            [ text "Cancel" ]
+            , Button.render Mdl
+            [ 20, 2 ]
+            model.mdl
+            [ Options.onClick EditDinnerInDb
+            ,Dialog.closeOn "click" ]
+            [ text "Save" ]
+            ]
+            
+        ]
 
 dinnerCardCell : Model -> Dinner -> Int -> Material.Grid.Cell Msg
 dinnerCardCell model dinner i =
@@ -210,7 +289,9 @@ cardView model dinner i =
             [ Card.title
                 [ css "background" ("url('" ++ dinner.picUrl ++ "') center / cover")
                 , css "height" "256px"
-                , css "padding" "0"
+                , css "padding" "0"     
+                , Options.onClick (EditDinnerDialog dinner)
+                , Dialog.openOn "click"                    
                   -- Clear default padding to encompass scrim
                 ]
                 [ Card.head
@@ -229,7 +310,7 @@ cardView model dinner i =
                 [ Button.render Mdl
                     [ 1, 0, i ]
                     model.mdl
-                    [ Button.ripple, Button.accent, Dialog.openOn "click", Options.onClick (SearchIngredients dinner) ]
+                    [ Button.ripple, Button.accent, Options.onClick (SearchIngredients dinner), Dialog.openOn "click" ]
                     [ text "Ingredients" ]
                 , Button.render Mdl
                     [ 1, 1, i ]
@@ -285,7 +366,7 @@ addToast f model =
             }
     in
         ( model_
-        , effect
+        , ( effect )
         )
 
 onKeyDown : (Int -> msg) -> Attribute msg
@@ -312,7 +393,7 @@ materialInput : String -> (String -> Msg) -> Model -> String -> Int -> Html Msg
 materialInput placeHolder msg model defValue group =
     div []
         [ Textfield.render Mdl
-            [ group ]
+            [ 2, group ]
             model.mdl
             [ Textfield.label placeHolder
             , Textfield.floatingLabel
@@ -335,3 +416,27 @@ materialMiniFab model msg icon =
         , css "margin-top" "15px"
         ]
         [ Icon.view icon [ Icon.size24] ]
+
+setDinnerName : String -> Dinner -> Dinner
+setDinnerName value dinner =
+    { dinner | name = value }
+
+
+setDinnerUrl : String -> Dinner -> Dinner
+setDinnerUrl value dinner =
+    { dinner | url = value }
+
+
+setDinnerPicUrl : String -> Dinner -> Dinner
+setDinnerPicUrl value dinner =
+    { dinner | picUrl = value }
+
+
+setDinnerPortions : String -> Dinner -> Dinner
+setDinnerPortions value dinner =
+    { dinner | portions = value }
+
+
+setDinnerTags : String -> Dinner -> Dinner
+setDinnerTags value dinner =
+    { dinner | tags = value }
