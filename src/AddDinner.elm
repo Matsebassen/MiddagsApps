@@ -1,7 +1,7 @@
 module AddDinner exposing (..)
 
 import ServerApi exposing (Dinner, Ingredient, getRandomDinner, addNewDinner)
-import Css as Css exposing (..) 
+import Css as Css exposing (..)
 import Html exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
 import Json.Decode as JsonD
@@ -77,7 +77,8 @@ type alias TableIngredient =
 
 init : Model
 init =
-    Model (Dinner "" "" "" "" "") [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model Material.model 
+    Model (Dinner "" "" "" "" "") [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model Material.model
+
 
 
 --UPDATE
@@ -87,27 +88,27 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         AddDinner ->
-            ( {model | waiting = True}, addNewDinner model.dinner (tableIngredientsToIngredients model.ingredients) JsonResponse )
+            ( { model | waiting = True }, addNewDinner model.dinner (tableIngredientsToIngredients model.ingredients) JsonResponse )
 
         JsonResponse (Ok response) ->
-            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "") [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model model.mdl )
+            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "") [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model model.mdl)
 
         JsonResponse (Err error) ->
             case error of
                 Http.BadUrl badUrlMsg ->
-                    addToast (Snackbar.toast 1 ("That was a shitty url. Message: " ++ badUrlMsg)) {model | waiting = False}
+                    addToast (Snackbar.toast 1 ("That was a shitty url. Message: " ++ badUrlMsg)) { model | waiting = False }
 
                 Http.Timeout ->
-                    addToast (Snackbar.toast 1 "The request timed out") {model | waiting = False}
+                    addToast (Snackbar.toast 1 "The request timed out") { model | waiting = False }
 
                 Http.NetworkError ->
-                    addToast (Snackbar.toast 1 "Can't contact server") {model | waiting = False}
+                    addToast (Snackbar.toast 1 "Can't contact server") { model | waiting = False }
 
                 Http.BadStatus badResponse ->
-                    addToast (Snackbar.toast 1 "Bad response code from webservice") {model | waiting = False}
+                    addToast (Snackbar.toast 1 (getHttpBody badResponse)) { model | waiting = False }
 
                 Http.BadPayload debugMessage badResponse ->
-                    addToast (Snackbar.toast 1 "Bad payload. Perhaps wrong JSON format?") {model | waiting = False}
+                    addToast (Snackbar.toast 1 "Bad payload. Perhaps wrong JSON format?") { model | waiting = False }
 
         DinnerName newName ->
             ( { model | dinner = setDinnerName newName model.dinner }, Cmd.none )
@@ -134,16 +135,16 @@ update msg model =
             ( { model | ingredients = (List.filterMap (editIngredientUnitInList unit ingredient) model.ingredients) }, Cmd.none )
 
         AddIngredient ->
-            ( { model | ingrCounter = model.ingrCounter + 1 ,ingredients = addNewIngredient model }, Cmd.none )
+            ( { model | ingrCounter = model.ingrCounter + 1, ingredients = addNewIngredient model }, Cmd.none )
 
         RemoveIngredient ingredient ->
             ( { model | ingredients = (List.filterMap (removeIngredientFromList ingredient (List.length model.ingredients)) model.ingredients) }, Cmd.none )
-        
+
         KeyDown key ->
             if key == 13 then
-                ( { model | ingrCounter = model.ingrCounter + 1 ,ingredients = addNewIngredient model }, Cmd.none )
+                ( { model | ingrCounter = model.ingrCounter + 1, ingredients = addNewIngredient model }, Cmd.none )
             else
-                (model, Cmd.none)        
+                ( model, Cmd.none )
 
         Snackbar msg_ ->
             Snackbar.update msg_ model.snackbar
@@ -154,13 +155,13 @@ update msg model =
             ( model, Cmd.none )
 
         IngredientsListInput input ->
-            ({model | inputIngredients = input}, Cmd.none)
-        
+            ( { model | inputIngredients = input }, Cmd.none )
+
         AddIngredientsFromList ->
-        ( { model | ingredients = List.append (arrayToIngredients model (listToNestedArray (String.lines model.inputIngredients))) model.ingredients, inputIngredients = "" }, Cmd.none )
-        
+            ( { model | ingredients = List.append (arrayToIngredients model (listToNestedArray (String.lines model.inputIngredients))) model.ingredients, inputIngredients = "" }, Cmd.none )
+
         IncrementCounter ->
-            ({ model | ingrCounter = model.ingrCounter + 1 }, Cmd.none)
+            ( { model | ingrCounter = model.ingrCounter + 1 }, Cmd.none )
 
         Mdl msg_ ->
             Material.update Mdl msg_ model
@@ -177,9 +178,13 @@ view model =
             flexFlowColumnAlignCenter
             [ dinnerViewCard model
             , ingredientViewCard model
-            , if (model.waiting) then Loading.indeterminate else div[][]
+            , br [] []
+            , if (model.waiting) then
+                Loading.indeterminate
+              else
+                div [] []
             ]
-        , p [] []        
+        , p [] []
         , materialButton model AddDinner "Add Dinner to DB" 2
         , Snackbar.view model.snackbar |> Html.map Snackbar
         , dialogView model
@@ -201,7 +206,7 @@ dinnerView model =
 dinnerViewCard : Model -> Html Msg
 dinnerViewCard model =
     Card.view
-        (Elevation.e8 :: Css.addDinnerCardCss)        
+        (Elevation.e8 :: Css.addDinnerCardCss)
         [ Card.text [ Card.expand ] []
           -- Filler
         , Card.text
@@ -228,7 +233,7 @@ ingredientView model =
 ingredientViewCard : Model -> Html Msg
 ingredientViewCard model =
     Card.view
-        ([Elevation.e8] ++ Css.addDinnerCardCss)   
+        ([ Elevation.e8 ] ++ Css.addDinnerCardCss)
         [ Card.text [ Card.expand ] []
           -- Filler
         , Card.text
@@ -267,7 +272,7 @@ renderIngredients : Model -> TableIngredient -> Html Msg
 renderIngredients model ingr =
     Table.tr []
         [ Table.td [] [ ingredientInputMaterial "Name" (IngredientName ingr) model ingr.ingredient.name 1 ingr.index 10 ]
-        , Table.td [] [ ingredientInputMaterial "Qty" (IngredientQty ingr) model ingr.ingredient.qty  2 ingr.index 3 ]
+        , Table.td [] [ ingredientInputMaterial "Qty" (IngredientQty ingr) model ingr.ingredient.qty 2 ingr.index 3 ]
         , Table.td [] [ ingredientInputMaterial "Unit" (IngredientUnit ingr) model ingr.ingredient.unit 3 ingr.index 3 ]
         , Table.td [] [ materialMiniFabAccent model (RemoveIngredient ingr) "remove_circle" ]
         ]
@@ -281,8 +286,8 @@ dialogView model =
         , Dialog.content []
             [ p []
                 [ div []
-                    [ Options.styled p  [ Typo.body2 ] [ text "FORMAT: Quantity  Unit  Name" ] 
-                        ,Textfield.render Mdl
+                    [ Options.styled p [ Typo.body2 ] [ text "FORMAT: Quantity  Unit  Name" ]
+                    , Textfield.render Mdl
                         [ 10 ]
                         model.mdl
                         [ Textfield.label "Paste the recipe here..."
@@ -301,8 +306,9 @@ dialogView model =
                 [ 0 ]
                 model.mdl
                 [ Dialog.closeOn "click"
-                , Options.onClick AddIngredientsFromList ]
-                [ text "Add"]
+                , Options.onClick AddIngredientsFromList
+                ]
+                [ text "Add" ]
             ]
         ]
 
@@ -324,7 +330,6 @@ radio value msg =
 black : Options.Property c m
 black =
     Color.text Color.black
-
 
 
 dinnerInputMaterial : String -> (String -> Msg) -> Model -> String -> Int -> Html Msg
@@ -437,14 +442,14 @@ listToNestedArray list =
     List.map (Regex.split (Regex.All) (Regex.regex " ")) list
 
 
-arrayToIngredients : Model -> List (List String) ->  List TableIngredient
+arrayToIngredients : Model -> List (List String) -> List TableIngredient
 arrayToIngredients model ingredientList =
     List.map (arrayToIngredient model) ingredientList
 
 
 arrayToIngredient : Model -> List String -> TableIngredient
 arrayToIngredient model ingrArray =
-        TableIngredient 0 (Ingredient (sumIngrName (List.drop 2 ingrArray)) (getIngrPart ingrArray 0 )  (getIngrPart ingrArray 1 )  ) 
+    TableIngredient 0 (Ingredient (sumIngrName (List.drop 2 ingrArray)) (getIngrPart ingrArray 0) (getIngrPart ingrArray 1))
 
 
 fromJust : Maybe String -> String
@@ -456,23 +461,40 @@ fromJust x =
         Nothing ->
             ""
 
+
 onKeyDown : (Int -> msg) -> Attribute msg
 onKeyDown tagger =
     on "keydown" (JsonD.map tagger keyCode)
 
 
+
 -- GETTERS & SETTERS
+
+
+getHttpBody : Response String -> String
+getHttpBody response =
+    case JsonD.decodeString (JsonD.at [ "body" ] JsonD.string) (toString response) of
+        Ok body ->
+            body
+
+        Err body ->
+            "Bad status code from web service. Failed to add dinner"
+
 
 sumIngrName : List String -> String
 sumIngrName lst =
-  case lst of
-    [] ->   ""
-    (x::xs) -> x ++ " " ++ sumIngrName(xs)
-    
+    case lst of
+        [] ->
+            ""
+
+        x :: xs ->
+            x ++ " " ++ sumIngrName (xs)
+
 
 getIngrPart : List String -> Int -> String
-getIngrPart array partNo  =
+getIngrPart array partNo =
     (fromJust (Array.get partNo (Array.fromList array)))
+
 
 removeIngredientFromList : TableIngredient -> Int -> TableIngredient -> Maybe TableIngredient
 removeIngredientFromList ingrToCheck nrOfIngredients ingr =
@@ -485,7 +507,7 @@ removeIngredientFromList ingrToCheck nrOfIngredients ingr =
 editIngredientNameInList : String -> TableIngredient -> TableIngredient -> Maybe TableIngredient
 editIngredientNameInList newName ingrToEdit ingr =
     if ingrToEdit == ingr then
-        Just {ingrToEdit | ingredient = setIngredientName newName ingrToEdit.ingredient }  
+        Just { ingrToEdit | ingredient = setIngredientName newName ingrToEdit.ingredient }
     else
         Just ingr
 
@@ -493,7 +515,7 @@ editIngredientNameInList newName ingrToEdit ingr =
 editIngredientQtyInList : String -> TableIngredient -> TableIngredient -> Maybe TableIngredient
 editIngredientQtyInList newQty ingrToEdit ingr =
     if ingrToEdit == ingr then
-        Just {ingrToEdit | ingredient = setIngredientQty newQty ingrToEdit.ingredient }  
+        Just { ingrToEdit | ingredient = setIngredientQty newQty ingrToEdit.ingredient }
     else
         Just ingr
 
@@ -501,7 +523,7 @@ editIngredientQtyInList newQty ingrToEdit ingr =
 editIngredientUnitInList : String -> TableIngredient -> TableIngredient -> Maybe TableIngredient
 editIngredientUnitInList newUnit ingrToEdit ingr =
     if ingrToEdit == ingr then
-        Just {ingrToEdit | ingredient = setIngredientUnit newUnit ingrToEdit.ingredient }  
+        Just { ingrToEdit | ingredient = setIngredientUnit newUnit ingrToEdit.ingredient }
     else
         Just ingr
 
@@ -510,13 +532,16 @@ addNewIngredient : Model -> List TableIngredient
 addNewIngredient model =
     (TableIngredient model.ingrCounter (Ingredient "" "" "")) :: model.ingredients
 
+
 tableIngredientsToIngredients : List TableIngredient -> List Ingredient
 tableIngredientsToIngredients tableingredients =
     List.map getIngredient tableingredients
 
+
 getIngredient : TableIngredient -> Ingredient
-getIngredient tableIngredient = 
+getIngredient tableIngredient =
     tableIngredient.ingredient
+
 
 setDinnerName : String -> Dinner -> Dinner
 setDinnerName value dinner =
@@ -542,13 +567,16 @@ setDinnerTags : String -> Dinner -> Dinner
 setDinnerTags value dinner =
     { dinner | tags = value }
 
+
 setIngredientName : String -> Ingredient -> Ingredient
 setIngredientName value ingredient =
     { ingredient | name = value }
 
+
 setIngredientQty : String -> Ingredient -> Ingredient
 setIngredientQty value ingredient =
     { ingredient | qty = value }
+
 
 setIngredientUnit : String -> Ingredient -> Ingredient
 setIngredientUnit value ingredient =
