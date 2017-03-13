@@ -105,7 +105,7 @@ update msg model =
                     addToast (Snackbar.toast 1 "Can't contact server") { model | waiting = False }
 
                 Http.BadStatus badResponse ->
-                    addToast (Snackbar.toast 1 (getHttpBody badResponse)) { model | waiting = False }
+                    addToast (Snackbar.toast 1 (badResponse.body)) { model | waiting = False }
 
                 Http.BadPayload debugMessage badResponse ->
                     addToast (Snackbar.toast 1 "Bad payload. Perhaps wrong JSON format?") { model | waiting = False }
@@ -469,16 +469,6 @@ onKeyDown tagger =
 
 
 -- GETTERS & SETTERS
-
-
-getHttpBody : Response String -> String
-getHttpBody response =
-    case JsonD.decodeString (JsonD.at [ "body" ] JsonD.string) (toString response) of
-        Ok body ->
-            body
-
-        Err body ->
-            "Bad status code from web service. Failed to add dinner"
 
 
 sumIngrName : List String -> String
