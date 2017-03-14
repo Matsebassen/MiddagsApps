@@ -1,6 +1,6 @@
 module AddDinner exposing (..)
 
-import ServerApi exposing (Dinner, Ingredient, getRandomDinner, addNewDinner)
+import ServerApi exposing (Dinner, Ingredient, IngredientMember, getRandomDinner, addNewDinner)
 import Css as Css exposing (..)
 import Html exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
@@ -33,7 +33,7 @@ import Task
 
 type alias Model =
     { dinner : Dinner
-    , ingredients : List TableIngredient
+    , ingredients : List Ingredient
     , inputIngredients : String
     , ingrCounter : Int
     , waiting : Bool
@@ -51,12 +51,10 @@ type Msg
     | DinnerPicUrl String
     | DinnerTags String
     | DinnerPortions String
-    | IngredientName TableIngredient String
-    | IngredientQty TableIngredient String
-    | IngredientUnit TableIngredient String
+    | EditIngredient IngredientMember Ingredient String
     | AddIngredient
     | AddIngredientsFromList
-    | RemoveIngredient TableIngredient
+    | RemoveIngredient Ingredient
     | KeyDown Int
     | Snackbar (Snackbar.Msg Int)
     | Nop
@@ -69,19 +67,12 @@ type alias Mdl =
     Material.Model
 
 
-type alias TableIngredient =
-    { index : Int
-    , ingredient : Ingredient
-    }
-
-
-
 --INIT
 
 
 init : Model
 init =
-    Model (Dinner "" "" "" "" "" 0) [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model Material.model
+    Model (Dinner "" "" "" "" "" 0) [ (Ingredient "" "" "" 1) ] "" 2 False Snackbar.model Material.model
 
 
 
@@ -92,10 +83,10 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         AddDinner ->
-            ( { model | waiting = True }, addNewDinner model.dinner (tableIngredientsToIngredients model.ingredients) JsonResponse )
+            ( { model | waiting = True }, addNewDinner model.dinner model.ingredients JsonResponse )
 
         JsonResponse (Ok response) ->
-            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "" 0) [ (TableIngredient 1 (Ingredient "" "" "")) ] "" 2 False Snackbar.model model.mdl)
+            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "" 0) [ (Ingredient "" "" "" 1) ] "" 2 False Snackbar.model model.mdl)
 
         JsonResponse (Err error) ->
             case error of
@@ -129,14 +120,8 @@ update msg model =
         DinnerPortions newPortions ->
             ( { model | dinner = setDinnerPortions newPortions model.dinner }, Cmd.none )
 
-        IngredientName ingredient name ->
-            ( { model | ingredients = (List.filterMap (editIngredientNameInList name ingredient) model.ingredients) }, Cmd.none )
-
-        IngredientQty ingredient qty ->
-            ( { model | ingredients = (List.filterMap (editIngredientQtyInList qty ingredient) model.ingredients) }, Cmd.none )
-
-        IngredientUnit ingredient unit ->
-            ( { model | ingredients = (List.filterMap (editIngredientUnitInList unit ingredient) model.ingredients) }, Cmd.none )
+        EditIngredient memberType ingredient name ->
+            ( { model | ingredients = (List.filterMap (editTableIngredientInList memberType name ingredient) model.ingredients) }, Cmd.none )
 
         AddIngredient ->
             ( { model | ingrCounter = model.ingrCounter + 1, ingredients = addNewIngredient model }, Task.attempt (always Nop) <| Dom.Scroll.toBottom Layout.mainId )
@@ -275,12 +260,12 @@ ingredientsTable model =
         ]
 
 
-renderIngredients : Model -> TableIngredient -> Html Msg
+renderIngredients : Model -> Ingredient -> Html Msg
 renderIngredients model ingr =
     Table.tr []
-        [ Table.td [] [ ingredientInputMaterial "Name" (IngredientName ingr) model ingr.ingredient.name 1 ingr.index 10 ]
-        , Table.td [] [ ingredientInputMaterial "Qty" (IngredientQty ingr) model ingr.ingredient.qty 2 ingr.index 3 ]
-        , Table.td [] [ ingredientInputMaterial "Unit" (IngredientUnit ingr) model ingr.ingredient.unit 3 ingr.index 3 ]
+        [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.Name ingr) model ingr.name 1 ingr.id 10 ]
+        , Table.td [] [ ingredientInputMaterial "Qty" (EditIngredient ServerApi.Qty ingr) model ingr.qty 2 ingr.id 3 ]
+        , Table.td [] [ ingredientInputMaterial "Unit" (EditIngredient ServerApi.Unit ingr) model ingr.unit 3 ingr.id 3 ]
         , Table.td [] [ materialMiniFabAccent model (RemoveIngredient ingr) "remove_circle" ]
         ]
 
@@ -449,14 +434,14 @@ listToNestedArray list =
     List.map (Regex.split (Regex.All) (Regex.regex " ")) list
 
 
-arrayToIngredients : Model -> List (List String) -> List TableIngredient
+arrayToIngredients : Model -> List (List String) -> List Ingredient
 arrayToIngredients model ingredientList =
     List.map (arrayToIngredient model) ingredientList
 
 
-arrayToIngredient : Model -> List String -> TableIngredient
+arrayToIngredient : Model -> List String -> Ingredient
 arrayToIngredient model ingrArray =
-    TableIngredient 0 (Ingredient (sumIngrName (List.drop 2 ingrArray)) (getIngrPart ingrArray 0) (getIngrPart ingrArray 1))
+    Ingredient (sumIngrName (List.drop 2 ingrArray)) (getIngrPart ingrArray 0) (getIngrPart ingrArray 1) 0
 
 
 fromJust : Maybe String -> String
@@ -493,7 +478,7 @@ getIngrPart array partNo =
     (fromJust (Array.get partNo (Array.fromList array)))
 
 
-removeIngredientFromList : TableIngredient -> Int -> TableIngredient -> Maybe TableIngredient
+removeIngredientFromList : Ingredient -> Int -> Ingredient -> Maybe Ingredient
 removeIngredientFromList ingrToCheck nrOfIngredients ingr =
     if ingrToCheck == ingr && nrOfIngredients > 1 then
         Nothing
@@ -501,43 +486,23 @@ removeIngredientFromList ingrToCheck nrOfIngredients ingr =
         Just ingr
 
 
-editIngredientNameInList : String -> TableIngredient -> TableIngredient -> Maybe TableIngredient
-editIngredientNameInList newName ingrToEdit ingr =
-    if ingrToEdit == ingr then
-        Just { ingrToEdit | ingredient = setIngredientName newName ingrToEdit.ingredient }
+editTableIngredientInList : IngredientMember -> String -> Ingredient -> Ingredient -> Maybe Ingredient
+editTableIngredientInList memberType newValue ingrToEdit ingr =
+    if ingrToEdit == ingr then  
+        case memberType of
+            ServerApi.Name ->
+                Just { ingrToEdit | name = newValue }
+            ServerApi.Qty ->
+                Just { ingrToEdit | qty = newValue }
+            ServerApi.Unit ->        
+                Just { ingrToEdit | unit = newValue }                
     else
         Just ingr
+                    
 
-
-editIngredientQtyInList : String -> TableIngredient -> TableIngredient -> Maybe TableIngredient
-editIngredientQtyInList newQty ingrToEdit ingr =
-    if ingrToEdit == ingr then
-        Just { ingrToEdit | ingredient = setIngredientQty newQty ingrToEdit.ingredient }
-    else
-        Just ingr
-
-
-editIngredientUnitInList : String -> TableIngredient -> TableIngredient -> Maybe TableIngredient
-editIngredientUnitInList newUnit ingrToEdit ingr =
-    if ingrToEdit == ingr then
-        Just { ingrToEdit | ingredient = setIngredientUnit newUnit ingrToEdit.ingredient }
-    else
-        Just ingr
-
-
-addNewIngredient : Model -> List TableIngredient
+addNewIngredient : Model -> List Ingredient
 addNewIngredient model =
-    (TableIngredient model.ingrCounter (Ingredient "" "" "")) :: model.ingredients
-
-
-tableIngredientsToIngredients : List TableIngredient -> List Ingredient
-tableIngredientsToIngredients tableingredients =
-    List.map getIngredient tableingredients
-
-
-getIngredient : TableIngredient -> Ingredient
-getIngredient tableIngredient =
-    tableIngredient.ingredient
+    (Ingredient "" "" "" model.ingrCounter) :: model.ingredients
 
 
 setDinnerName : String -> Dinner -> Dinner
@@ -563,18 +528,3 @@ setDinnerPortions value dinner =
 setDinnerTags : String -> Dinner -> Dinner
 setDinnerTags value dinner =
     { dinner | tags = value }
-
-
-setIngredientName : String -> Ingredient -> Ingredient
-setIngredientName value ingredient =
-    { ingredient | name = value }
-
-
-setIngredientQty : String -> Ingredient -> Ingredient
-setIngredientQty value ingredient =
-    { ingredient | qty = value }
-
-
-setIngredientUnit : String -> Ingredient -> Ingredient
-setIngredientUnit value ingredient =
-    { ingredient | unit = value }

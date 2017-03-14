@@ -1,6 +1,6 @@
 module SearchDinner exposing (..)
 
-import ServerApi exposing (Dinner, Ingredient, getRandomDinner, searchDinners, addNewDinner, getIngredients, editDinner)
+import ServerApi exposing (Dinner, Ingredient, IngredientMember, getRandomDinner, searchDinners, addNewDinner, getIngredients, editDinner)
 import Html exposing (..)
 import Css as Css exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
@@ -8,7 +8,6 @@ import Html.Attributes exposing (..)
 import Http exposing (..)
 import Json.Decode as JsonD
 import Material
-import Task exposing (..)
 import Material.Elevation as Elevation
 import Material.Dialog as Dialog
 import Material.Button as Button
@@ -21,6 +20,8 @@ import Material.Helpers exposing (map1st, map2nd, delay, pure, cssTransitionStep
 import Material.Snackbar as Snackbar
 import Material.Spinner as Loading
 import Material.Icon as Icon
+import Material.Table as Table
+import Material.Typography as Typo
 
 
 --MODEL
@@ -32,6 +33,7 @@ type alias Model =
     , ingredients : List Ingredient
     , searchText : String
     , raised : Int
+    , ingrCounter : Int
     , waiting : Bool
     , dialogType : DialogType
     , snackbar : Snackbar.Model Int
@@ -42,10 +44,15 @@ type alias Model =
 type alias Mdl =
     Material.Model
 
-
 type DialogType
     = ShowIngredients
     | EditDinner
+    | EditIngredients
+
+type alias TableIngredient =
+    { index : Int
+    , ingredient : Ingredient
+    }
 
 
 
@@ -54,7 +61,7 @@ type DialogType
 
 init : Model
 init =
-    Model (Dinner "" "" "" "" "" 0) [] [] "" -1 False ShowIngredients Snackbar.model Material.model
+    Model (Dinner "" "" "" "" "" 0) [] [] "" -1 -1 False ShowIngredients Snackbar.model Material.model
 
 
 
@@ -68,6 +75,11 @@ type Msg
     | SearchDinners
     | SearchIngredients Dinner
     | SearchIngredientsResult (Result Http.Error (List Ingredient))
+    | AddIngredient
+    | EditIngredient IngredientMember Ingredient String
+    | EditIngrInDb
+    | RemoveIngredient Ingredient
+    | EditIngredientsView
     | EditDinnerDialog Dinner
     | EditDinnerInDb
     | EditDinnerResult (Result Http.Error String)
@@ -123,6 +135,21 @@ update msg model =
 
         SearchIngredientsResult (Err error) ->
             ( model, Cmd.none )
+
+        AddIngredient ->
+            ( { model | ingrCounter = model.ingrCounter - 1, ingredients = addNewIngredient model }, Cmd.none )                    
+        
+        EditIngredient memberType ingredient value ->
+            ( { model | ingredients = (List.filterMap (editTableIngredientInList memberType value ingredient) model.ingredients) }, Cmd.none )
+        
+        EditIngrInDb ->
+            ( model, editDinner model.currentDinner [] EditDinnerResult )
+        
+        RemoveIngredient ingredient ->
+            ( { model | ingredients = (List.filterMap (removeIngredientFromList ingredient (List.length model.ingredients)) model.ingredients) }, Cmd.none )
+        
+        EditIngredientsView ->
+            ( { model | dialogType = EditIngredients }, Cmd.none)
 
         EditDinnerDialog dinner ->
             ( { model | dialogType = EditDinner, currentDinner = dinner }, Cmd.none )
@@ -214,7 +241,9 @@ dialogView model =
 
         EditDinner ->
             editDinnerView model
-
+        
+        EditIngredients ->
+            editIngredientView model
 
 showIngredientView : Model -> Html Msg
 showIngredientView model =
@@ -223,7 +252,7 @@ showIngredientView model =
         [ Dialog.title [] [ text "Ingredients" ]
         , Dialog.content []
             [ p []
-                [ ingredientTable model ]
+                [ ingredientsTable model ]
             ]
         , Dialog.actions []
             [ Button.render Mdl
@@ -231,6 +260,11 @@ showIngredientView model =
                 model.mdl
                 [ Dialog.closeOn "click" ]
                 [ text "Close" ]
+            , Button.render Mdl
+                [ 0 ]
+                model.mdl
+                [ Options.onClick EditIngredientsView ]
+                [ text "Edit" ]
             ]
         ]
 
@@ -340,8 +374,8 @@ white =
     Color.text Color.white
 
 
-ingredientTable : Model -> Html Msg
-ingredientTable model =
+ingredientsTable : Model -> Html Msg
+ingredientsTable model =
     table [ align "center" ]
         [ thead []
             [ tr []
@@ -362,6 +396,56 @@ renderIngredients ingredient =
         , td [ align "left" ] [ text ingredient.qty ]
         , td [ align "left" ] [ text ingredient.unit ]
         ]
+
+editIngredientView : Model -> Html Msg
+editIngredientView model =
+    Dialog.view
+        [css "width" "500px"]
+        [ Dialog.title [] [ text "Ingredients" ]
+        , Dialog.content []
+            [ 
+            div []
+            [ Options.div Css.flexFlowRowAlignCenter
+            [ (Options.styled p [ Typo.title ] [ text "Ingredients" ])            
+            ]
+        , editIngredientsTable model
+        , materialMiniFab model AddIngredient "add_circle"
+        ]
+            ]
+        , Dialog.actions []
+            [ Button.render Mdl
+                [ 0 ]
+                model.mdl
+                [ Dialog.closeOn "click", css "margin-top" "12px" ]
+                [ text "Close" ]
+            , materialButton model EditIngrInDb "Save" 15
+            ]
+        ]    
+
+editIngredientsTable : Model -> Html Msg
+editIngredientsTable model =
+    Table.table []
+        [ Table.thead []
+            [ Table.tr []
+                [ Table.th [] [ text "Name" ]
+                , Table.th [] [ text "Quantity" ]
+                , Table.th [] [ text "Unit" ]
+                , Table.th [] []
+                ]
+            ]
+        , Table.tbody [] (List.map (editRenderIngredients model) (List.reverse model.ingredients))
+        ]
+
+
+editRenderIngredients : Model -> Ingredient -> Html Msg
+editRenderIngredients model ingr =
+    Table.tr []
+        [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.Name ingr) model ingr.name 1 ingr.id 10 ]
+        , Table.td [] [ ingredientInputMaterial "Qty" (EditIngredient ServerApi.Qty ingr) model ingr.qty 2 ingr.id 3 ]
+        , Table.td [] [ ingredientInputMaterial "Unit" (EditIngredient ServerApi.Unit ingr) model ingr.unit 3 ingr.id 3 ]
+        , Table.td [] [ materialMiniFabAccent model (RemoveIngredient ingr) "remove_circle" ]
+        ]
+
 
 
 addToast : Snackbar.Contents Int -> Model -> ( Model, Cmd Msg )
@@ -416,6 +500,24 @@ materialInput placeHolder msg model defValue group =
             []
         ]
 
+ingredientInputMaterial : String -> (String -> Msg) -> Model -> String -> Int -> Int -> Int -> Html Msg
+ingredientInputMaterial placeHolder msg model defValue x y txtWidth =
+    div []
+        [ Textfield.render Mdl
+            [ 2, x, y ]
+            model.mdl
+            [ Textfield.label placeHolder
+            , Textfield.text_
+            , Options.onInput msg
+            , Textfield.value defValue
+            , Options.attribute (onKeyDown KeyDown)
+            , css "width" (toString txtWidth ++ "rem")
+            , css "margin-top" "-1rem"
+            , css "margin-bottom" "-1rem"
+            ]
+            []
+        ]
+
 
 materialMiniFab : Model -> Msg -> String -> Html Msg
 materialMiniFab model msg icon =
@@ -428,6 +530,45 @@ materialMiniFab model msg icon =
         , css "margin-top" "15px"
         ]
         [ Icon.view icon [ Icon.size24 ] ]
+
+materialMiniFabAccent : Model -> Msg -> String -> Html Msg
+materialMiniFabAccent model msg icon =
+    Button.render Mdl
+        [ 3, 1 ]
+        model.mdl
+        [ Options.onClick (msg)
+        , Button.minifab
+        , Button.colored
+        , Button.accent
+        ]
+        [ Icon.i icon ]
+
+-- GETTERS & SETTERS
+
+addNewIngredient : Model -> List Ingredient
+addNewIngredient model =
+    (Ingredient "" "" "" model.ingrCounter) :: model.ingredients
+
+
+editTableIngredientInList : IngredientMember -> String -> Ingredient -> Ingredient -> Maybe Ingredient
+editTableIngredientInList memberType newValue ingrToEdit ingr =
+    if ingrToEdit == ingr then  
+        case memberType of
+            ServerApi.Name ->
+                Just { ingrToEdit | name = newValue }
+            ServerApi.Qty ->
+                Just { ingrToEdit | qty = newValue }
+            ServerApi.Unit ->        
+                Just { ingrToEdit | unit = newValue }                
+    else
+        Just ingr
+
+removeIngredientFromList : Ingredient -> Int -> Ingredient -> Maybe Ingredient
+removeIngredientFromList ingrToCheck nrOfIngredients ingr =
+    if ingrToCheck == ingr && nrOfIngredients > 1 then
+        Nothing
+    else
+        Just ingr
 
 
 setDinnerName : String -> Dinner -> Dinner

@@ -19,12 +19,19 @@ type alias Ingredient =
     { name : String
     , qty : String
     , unit : String
+    , id : Int
     }
+
+type IngredientMember
+    = Name
+    | Qty
+    | Unit
+
 
 webServiceURl : String
 webServiceURl = 
-    "https://middagsapp.azurewebsites.net/API/MiddagsApp/"
-    --"http://localhost:49203/API/MiddagsApp/"
+    --"https://middagsapp.azurewebsites.net/API/MiddagsApp/"
+    "http://localhost:49203/API/MiddagsApp/"
 
     
 
@@ -66,6 +73,16 @@ editDinner dinner ingredients msg =
     in
         Http.send msg request
 
+editDinnerIngredients : Dinner -> List Ingredient -> (Result Http.Error String -> msg) -> Cmd msg
+editDinnerIngredients dinner ingredients msg =
+    let
+        url =
+            webServiceURl ++ "EditDinnerIngredients"
+
+        request =
+            Http.post url (Http.jsonBody (dinnerEncoder dinner ingredients)) jsonResponseDecoder
+    in
+        Http.send msg request
 
 searchDinners : String -> (Result Http.Error (List Dinner) -> msg) -> Cmd msg
 searchDinners searchText msg =
@@ -104,10 +121,11 @@ dinnerDecoder =
 
 ingredientDecoder : JsonD.Decoder Ingredient
 ingredientDecoder =
-    JsonD.map3 Ingredient
+    JsonD.map4 Ingredient
         (JsonD.field "name" JsonD.string)
         (JsonD.field "qty" JsonD.string)
         (JsonD.field "unit" JsonD.string)
+        (JsonD.field "id" JsonD.int)
 
 
 dinnerEncoder : Dinner -> List Ingredient -> Encode.Value
@@ -129,6 +147,7 @@ ingredientEncoder ingredient =
         [ ( "name", Encode.string ingredient.name )
         , ( "qty", Encode.string ingredient.qty )
         , ( "unit", Encode.string ingredient.unit )
+        , ( "id", Encode.int ingredient.id )
         ]
 
 
