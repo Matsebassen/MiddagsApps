@@ -23,6 +23,9 @@ import Material.Dialog as Dialog
 import Material.Icon as Icon
 import Material.Table as Table
 import Material.Progress as Loading
+import Material.Layout as Layout
+import Dom.Scroll
+import Task
 
 
 --MODEL
@@ -56,6 +59,7 @@ type Msg
     | RemoveIngredient TableIngredient
     | KeyDown Int
     | Snackbar (Snackbar.Msg Int)
+    | Nop
     | InputAsList
     | IngredientsListInput String
     | IncrementCounter
@@ -135,7 +139,7 @@ update msg model =
             ( { model | ingredients = (List.filterMap (editIngredientUnitInList unit ingredient) model.ingredients) }, Cmd.none )
 
         AddIngredient ->
-            ( { model | ingrCounter = model.ingrCounter + 1, ingredients = addNewIngredient model }, Cmd.none )
+            ( { model | ingrCounter = model.ingrCounter + 1, ingredients = addNewIngredient model }, Task.attempt (always Nop) <| Dom.Scroll.toBottom Layout.mainId )
 
         RemoveIngredient ingredient ->
             ( { model | ingredients = (List.filterMap (removeIngredientFromList ingredient (List.length model.ingredients)) model.ingredients) }, Cmd.none )
@@ -150,6 +154,9 @@ update msg model =
             Snackbar.update msg_ model.snackbar
                 |> map1st (\s -> { model | snackbar = s })
                 |> map2nd (Cmd.map Snackbar)
+
+        Nop ->
+            ( model, Cmd.none )
 
         InputAsList ->
             ( model, Cmd.none )

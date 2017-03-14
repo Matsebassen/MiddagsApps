@@ -2,12 +2,13 @@ module SearchDinner exposing (..)
 
 import ServerApi exposing (Dinner, Ingredient, getRandomDinner, searchDinners, addNewDinner, getIngredients, editDinner)
 import Html exposing (..)
-import Css as Css exposing (..) 
+import Css as Css exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
 import Html.Attributes exposing (..)
 import Http exposing (..)
 import Json.Decode as JsonD
 import Material
+import Task exposing (..)
 import Material.Elevation as Elevation
 import Material.Dialog as Dialog
 import Material.Button as Button
@@ -26,8 +27,7 @@ import Material.Icon as Icon
 
 
 type alias Model =
-    { statusMessage : String
-    , currentDinner : Dinner
+    { currentDinner : Dinner
     , dinners : List Dinner
     , ingredients : List Ingredient
     , searchText : String
@@ -42,11 +42,10 @@ type alias Model =
 type alias Mdl =
     Material.Model
 
-type DialogType 
+
+type DialogType
     = ShowIngredients
     | EditDinner
-    
-    
 
 
 
@@ -55,7 +54,7 @@ type DialogType
 
 init : Model
 init =
-    Model "" (Dinner "" "" "" "" "" 0) [] [] "" -1 False ShowIngredients Snackbar.model Material.model
+    Model (Dinner "" "" "" "" "" 0) [] [] "" -1 False ShowIngredients Snackbar.model Material.model
 
 
 
@@ -81,13 +80,14 @@ type Msg
     | DinnerPicUrl String
     | DinnerTags String
     | DinnerPortions String
+    | AddToast String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GetRandomDinner ->
-            ( {model | waiting = True}, getRandomDinner SearchResults )
+            ( { model | waiting = True }, getRandomDinner SearchResults )
 
         SearchResults (Ok dinnersFound) ->
             ( { model | dinners = dinnersFound, waiting = False }, Cmd.none )
@@ -95,19 +95,19 @@ update msg model =
         SearchResults (Err error) ->
             case error of
                 Http.BadUrl badUrlMsg ->
-                    ( { model | statusMessage = "That was a shitty url. Message: " ++ badUrlMsg }, Cmd.none )
+                    update (AddToast "Bad webservice URL") model
 
                 Http.Timeout ->
-                    ( { model | statusMessage = "The request timed out" }, Cmd.none )
+                    update (AddToast "The request timed out") model
 
                 Http.NetworkError ->
-                    addToast (Snackbar.toast 1 "Can't contact server") model
+                    update (AddToast "Can't contact server") model
 
                 Http.BadStatus badResponse ->
-                    ( { model | statusMessage = "Bad status. Does that make sense to you?" ++ toString badResponse }, Cmd.none )
+                    update (AddToast badResponse.body) model
 
                 Http.BadPayload debugMessage badResponse ->
-                    ( { model | statusMessage = "My payload is bad. Really bad. Also, I got a message for you: " ++ debugMessage }, Cmd.none )
+                    update (AddToast badResponse.body) model
 
         SearchText searchTxt ->
             ( { model | searchText = searchTxt }, Cmd.none )
@@ -116,46 +116,46 @@ update msg model =
             ( { model | waiting = True }, searchDinners model.searchText SearchResults )
 
         SearchIngredients dinner ->
-            ( { model | dialogType = ShowIngredients, currentDinner = dinner} , getIngredients dinner.name SearchIngredientsResult )
+            ( { model | dialogType = ShowIngredients, currentDinner = dinner }, getIngredients dinner.name SearchIngredientsResult )
 
         SearchIngredientsResult (Ok ingredientsFound) ->
             ( { model | ingredients = ingredientsFound }, Cmd.none )
 
         SearchIngredientsResult (Err error) ->
-            (model, Cmd.none)
-        
+            ( model, Cmd.none )
+
         EditDinnerDialog dinner ->
-            ( { model | dialogType = EditDinner, currentDinner = dinner} , Cmd.none )
-        
+            ( { model | dialogType = EditDinner, currentDinner = dinner }, Cmd.none )
+
         EditDinnerInDb ->
-            (model, editDinner model.currentDinner [] EditDinnerResult)
+            ( model, editDinner model.currentDinner [] EditDinnerResult )
 
         EditDinnerResult (Ok response) ->
-            addToast (Snackbar.toast 1 response) { model | waiting = False }
+            --addToast (Snackbar.toast 1 response) { model | waiting = False }
+            (update SearchDinners { model | waiting = False })
 
         EditDinnerResult (Err error) ->
             case error of
                 Http.BadUrl badUrlMsg ->
-                    ( { model | statusMessage = "That was a shitty url. Message: " ++ badUrlMsg }, Cmd.none )
+                    update (AddToast "Bad webservice URL") model
 
                 Http.Timeout ->
-                    ( { model | statusMessage = "The request timed out" }, Cmd.none )
+                    update (AddToast "The request timed out") model
 
                 Http.NetworkError ->
-                    addToast (Snackbar.toast 1 "Can't contact server") { model | waiting = False }
+                    update (AddToast "Can't contact server") model
 
                 Http.BadStatus badResponse ->
-                    addToast (Snackbar.toast 1 badResponse.body) { model | waiting = False }
+                    update (AddToast badResponse.body) model
 
                 Http.BadPayload debugMessage badResponse ->
-                    addToast (Snackbar.toast 1 badResponse.body) { model | waiting = False }
-
+                    update (AddToast badResponse.body) model
 
         KeyDown key ->
             if key == 13 then
                 ( { model | waiting = True }, searchDinners model.searchText SearchResults )
             else
-                (model, Cmd.none)
+                ( model, Cmd.none )
 
         Raise k ->
             { model | raised = k } ! []
@@ -167,7 +167,7 @@ update msg model =
 
         Mdl msg_ ->
             Material.update Mdl msg_ model
-        
+
         DinnerName newName ->
             ( { model | currentDinner = setDinnerName newName model.currentDinner }, Cmd.none )
 
@@ -183,23 +183,26 @@ update msg model =
         DinnerPortions newPortions ->
             ( { model | currentDinner = setDinnerPortions newPortions model.currentDinner }, Cmd.none )
 
+        AddToast message ->
+            addToast (Snackbar.toast 1 message) { model | waiting = False }
+
 
 view : Model -> Html Msg
 view model =
     Options.div
-            Css.flexFlowColumnAlignCenter
-        [ h3 [ style [ ( "padding", "0rem" ) ] ] [ text model.statusMessage ]        
+        Css.flexFlowColumnAlignCenter
+        [ h3 [ style [ ( "padding", "0rem" ) ] ] []
         , Options.div
-            Css.flexFlowRowAlignCenter         
-            [materialInput "Search..." SearchText model model.searchText 1        
-            ,materialMiniFab model SearchDinners "search"             
+            Css.flexFlowRowAlignCenter
+            [ materialInput "Search..." SearchText model model.searchText 1
+            , materialMiniFab model SearchDinners "search"
             ]
         , materialButton model GetRandomDinner "I feel lucky" 2
-        , br[] []
-        , Loading.spinner [Loading.active model.waiting]
-        , List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid [css "justify-content" "center"]         
+        , br [] []
+        , Loading.spinner [ Loading.active model.waiting ]
+        , List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid [ css "justify-content" "center" ]
         , dialogView model
-        , Snackbar.view model.snackbar |> Html.map Snackbar        
+        , Snackbar.view model.snackbar |> Html.map Snackbar
         ]
 
 
@@ -208,6 +211,7 @@ dialogView model =
     case model.dialogType of
         ShowIngredients ->
             showIngredientView model
+
         EditDinner ->
             editDinnerView model
 
@@ -219,21 +223,22 @@ showIngredientView model =
         [ Dialog.title [] [ text "Ingredients" ]
         , Dialog.content []
             [ p []
-            [ ingredientTable model ]
+                [ ingredientTable model ]
             ]
         , Dialog.actions []
             [ Button.render Mdl
-            [ 0 ]
-            model.mdl
-            [ Dialog.closeOn "click" ]
-            [ text "Close" ]
+                [ 0 ]
+                model.mdl
+                [ Dialog.closeOn "click" ]
+                [ text "Close" ]
             ]
         ]
 
+
 editDinnerView : Model -> Html Msg
-editDinnerView model = 
+editDinnerView model =
     Dialog.view
-        [] 
+        []
         [ Dialog.title [] [ text "Edit Dinner" ]
         , Dialog.content []
             [ materialInput "Name" DinnerName model model.currentDinner.name 1
@@ -244,19 +249,20 @@ editDinnerView model =
             ]
         , Dialog.actions []
             [ Button.render Mdl
-            [ 20, 1 ]
-            model.mdl
-            [ Dialog.closeOn "click" ]
-            [ text "Cancel" ]
+                [ 20, 1 ]
+                model.mdl
+                [ Dialog.closeOn "click" ]
+                [ text "Cancel" ]
             , Button.render Mdl
-            [ 20, 2 ]
-            model.mdl
-            [ Options.onClick EditDinnerInDb
-            ,Dialog.closeOn "click" ]
-            [ text "Save" ]
+                [ 20, 2 ]
+                model.mdl
+                [ Options.onClick EditDinnerInDb
+                , Dialog.closeOn "click"
+                ]
+                [ text "Save" ]
             ]
-            
         ]
+
 
 dinnerCardCell : Model -> Dinner -> Int -> Material.Grid.Cell Msg
 dinnerCardCell model dinner i =
@@ -289,9 +295,9 @@ cardView model dinner i =
             [ Card.title
                 [ css "background" ("url('" ++ dinner.picUrl ++ "') center / cover")
                 , css "height" "256px"
-                , css "padding" "0"     
+                , css "padding" "0"
                 , Options.onClick (EditDinnerDialog dinner)
-                , Dialog.openOn "click"                    
+                , Dialog.openOn "click"
                   -- Clear default padding to encompass scrim
                 ]
                 [ Card.head
@@ -316,8 +322,13 @@ cardView model dinner i =
                     [ 1, 1, i ]
                     model.mdl
                     [ Button.ripple
-                    ,if (String.length dinner.url < 1) then  Button.disabled else Button.link dinner.url
-                    ,Button.accent,  Options.attribute <| Html.Attributes.target "_blank" ]
+                    , if (String.length dinner.url < 1) then
+                        Button.disabled
+                      else
+                        Button.link dinner.url
+                    , Button.accent
+                    , Options.attribute <| Html.Attributes.target "_blank"
+                    ]
                     [ text "Website" ]
                 ]
             ]
@@ -366,13 +377,13 @@ addToast f model =
             }
     in
         ( model_
-        , ( effect )
+        , (Cmd.batch [ effect ])
         )
+
 
 onKeyDown : (Int -> msg) -> Attribute msg
 onKeyDown tagger =
     on "keydown" (JsonD.map tagger keyCode)
-
 
 
 materialButton : Model -> Msg -> String -> Int -> Html Msg
@@ -405,6 +416,7 @@ materialInput placeHolder msg model defValue group =
             []
         ]
 
+
 materialMiniFab : Model -> Msg -> String -> Html Msg
 materialMiniFab model msg icon =
     Button.render Mdl
@@ -415,7 +427,8 @@ materialMiniFab model msg icon =
         , Button.colored
         , css "margin-top" "15px"
         ]
-        [ Icon.view icon [ Icon.size24] ]
+        [ Icon.view icon [ Icon.size24 ] ]
+
 
 setDinnerName : String -> Dinner -> Dinner
 setDinnerName value dinner =
