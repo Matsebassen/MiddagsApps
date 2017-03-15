@@ -67,6 +67,7 @@ type alias Mdl =
     Material.Model
 
 
+
 --INIT
 
 
@@ -263,7 +264,7 @@ ingredientsTable model =
 renderIngredients : Model -> Ingredient -> Html Msg
 renderIngredients model ingr =
     Table.tr []
-        [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.Name ingr) model ingr.name 1 ingr.id 10 ]
+        [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.IngredientName ingr) model ingr.name 1 ingr.id 10 ]
         , Table.td [] [ ingredientInputMaterial "Qty" (EditIngredient ServerApi.Qty ingr) model ingr.qty 2 ingr.id 3 ]
         , Table.td [] [ ingredientInputMaterial "Unit" (EditIngredient ServerApi.Unit ingr) model ingr.unit 3 ingr.id 3 ]
         , Table.td [] [ materialMiniFabAccent model (RemoveIngredient ingr) "remove_circle" ]
@@ -488,17 +489,19 @@ removeIngredientFromList ingrToCheck nrOfIngredients ingr =
 
 editTableIngredientInList : IngredientMember -> String -> Ingredient -> Ingredient -> Maybe Ingredient
 editTableIngredientInList memberType newValue ingrToEdit ingr =
-    if ingrToEdit == ingr then  
+    if ingrToEdit == ingr then
         case memberType of
-            ServerApi.Name ->
+            ServerApi.IngredientName ->
                 Just { ingrToEdit | name = newValue }
+
             ServerApi.Qty ->
                 Just { ingrToEdit | qty = newValue }
-            ServerApi.Unit ->        
-                Just { ingrToEdit | unit = newValue }                
+
+            ServerApi.Unit ->
+                Just { ingrToEdit | unit = newValue }
     else
         Just ingr
-                    
+
 
 addNewIngredient : Model -> List Ingredient
 addNewIngredient model =
