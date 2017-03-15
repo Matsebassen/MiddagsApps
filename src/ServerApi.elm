@@ -39,8 +39,8 @@ type DinnerMember
 
 webServiceURl : String
 webServiceURl =
-    --"https://middagsapp.azurewebsites.net/API/MiddagsApp/"
-    "http://localhost:49203/API/MiddagsApp/"
+    --"http://localhost:49203/API/MiddagsApp/"
+    "https://middagsapp.azurewebsites.net/API/MiddagsApp/"
 
 
 getRandomDinner : (Result Http.Error (List Dinner) -> msg) -> Cmd msg
