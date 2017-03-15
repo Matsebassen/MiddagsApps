@@ -78,13 +78,13 @@ type Msg
     | RemoveIngredient Ingredient
     | EditIngredientsView
     | EditDinnerDialog Dinner
+    | EditDinner DinnerMember String
     | EditDinnerInDb
     | EditDinnerResult (Result Http.Error String)
     | KeyDown Int
     | Raise Int
     | Snackbar (Snackbar.Msg Int)
     | Mdl (Material.Msg Msg)
-    | EditDinner DinnerMember String
     | AddToast String
 
 
@@ -147,6 +147,9 @@ update msg model =
         EditDinnerDialog dinner ->
             ( { model | dialogType = EditDinnerDia, currentDinner = dinner }, Cmd.none )
 
+        EditDinner memberType newValue ->
+            ( { model | currentDinner = editDinnerMember memberType newValue model.currentDinner }, Cmd.none )
+
         EditDinnerInDb ->
             ( { model | waiting = True }, editDinner model.currentDinner [] EditDinnerResult )
 
@@ -188,9 +191,6 @@ update msg model =
 
         Mdl msg_ ->
             Material.update Mdl msg_ model
-
-        EditDinner memberType newValue ->
-            ( { model | currentDinner = editDinnerMember memberType newValue model.currentDinner }, Cmd.none )
 
         AddToast message ->
             addToast (Snackbar.toast 1 message) { model | waiting = False }
@@ -445,6 +445,10 @@ addToast f model =
 onKeyDown : (Int -> msg) -> Attribute msg
 onKeyDown tagger =
     on "keydown" (JsonD.map tagger keyCode)
+
+
+
+-- MATERIAL UI CONSTRUCTORS
 
 
 materialButton : Model -> Msg -> String -> Int -> Html Msg

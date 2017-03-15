@@ -1,6 +1,6 @@
 module AddDinner exposing (..)
 
-import ServerApi exposing (Dinner, Ingredient, IngredientMember, getRandomDinner, addNewDinner)
+import ServerApi exposing (Dinner, Ingredient, IngredientMember, DinnerMember, getRandomDinner, addNewDinner)
 import Css as Css exposing (..)
 import Html exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
@@ -46,11 +46,7 @@ type Msg
     = JsonResponse (Result Http.Error String)
     | AddDinner
     | Mdl (Material.Msg Msg)
-    | DinnerName String
-    | DinnerUrl String
-    | DinnerPicUrl String
-    | DinnerTags String
-    | DinnerPortions String
+    | EditDinner DinnerMember String
     | EditIngredient IngredientMember Ingredient String
     | AddIngredient
     | AddIngredientsFromList
@@ -106,20 +102,8 @@ update msg model =
                 Http.BadPayload debugMessage badResponse ->
                     addToast (Snackbar.toast 1 "Bad payload. Perhaps wrong JSON format?") { model | waiting = False }
 
-        DinnerName newName ->
-            ( { model | dinner = setDinnerName newName model.dinner }, Cmd.none )
-
-        DinnerUrl newUrl ->
-            ( { model | dinner = setDinnerUrl newUrl model.dinner }, Cmd.none )
-
-        DinnerPicUrl newUrl ->
-            ( { model | dinner = setDinnerPicUrl newUrl model.dinner }, Cmd.none )
-
-        DinnerTags newTags ->
-            ( { model | dinner = setDinnerTags newTags model.dinner }, Cmd.none )
-
-        DinnerPortions newPortions ->
-            ( { model | dinner = setDinnerPortions newPortions model.dinner }, Cmd.none )
+        EditDinner memberType newValue ->
+            ( { model | dinner = editDinnerMember memberType newValue model.dinner }, Cmd.none )
 
         EditIngredient memberType ingredient name ->
             ( { model | ingredients = (List.filterMap (editTableIngredientInList memberType name ingredient) model.ingredients) }, Cmd.none )
@@ -188,11 +172,11 @@ dinnerView : Model -> Html Msg
 dinnerView model =
     div []
         [ (Options.styled p [ Typo.title ] [ text "New Dinner" ])
-        , dinnerInputMaterial "Name of dinner" DinnerName model model.dinner.name 1
-        , dinnerInputMaterial "Portions" DinnerPortions model model.dinner.portions 2
-        , dinnerInputMaterial "Tags" DinnerTags model model.dinner.tags 3
-        , dinnerInputMaterial "Picture Url" DinnerPicUrl model model.dinner.picUrl 4
-        , dinnerInputMaterial "Url (optional)" DinnerUrl model model.dinner.url 5
+        , dinnerInputMaterial "Name of dinner" (EditDinner ServerApi.DinnerName) model model.dinner.name 1
+        , dinnerInputMaterial "Portions" (EditDinner ServerApi.Portions) model model.dinner.portions 2
+        , dinnerInputMaterial "Tags" (EditDinner ServerApi.Tags) model model.dinner.tags 3
+        , dinnerInputMaterial "Picture Url" (EditDinner ServerApi.PicUrl) model model.dinner.picUrl 4
+        , dinnerInputMaterial "Url (optional)" (EditDinner ServerApi.Url) model model.dinner.url 5
         ]
 
 
@@ -508,26 +492,20 @@ addNewIngredient model =
     (Ingredient "" "" "" model.ingrCounter) :: model.ingredients
 
 
-setDinnerName : String -> Dinner -> Dinner
-setDinnerName value dinner =
-    { dinner | name = value }
+editDinnerMember : DinnerMember -> String -> Dinner -> Dinner
+editDinnerMember memberType newValue dinner =
+    case memberType of
+        ServerApi.DinnerName ->
+            { dinner | name = newValue }
 
+        ServerApi.Url ->
+            { dinner | url = newValue }
 
-setDinnerUrl : String -> Dinner -> Dinner
-setDinnerUrl value dinner =
-    { dinner | url = value }
+        ServerApi.Tags ->
+            { dinner | tags = newValue }
 
+        ServerApi.Portions ->
+            { dinner | portions = newValue }
 
-setDinnerPicUrl : String -> Dinner -> Dinner
-setDinnerPicUrl value dinner =
-    { dinner | picUrl = value }
-
-
-setDinnerPortions : String -> Dinner -> Dinner
-setDinnerPortions value dinner =
-    { dinner | portions = value }
-
-
-setDinnerTags : String -> Dinner -> Dinner
-setDinnerTags value dinner =
-    { dinner | tags = value }
+        ServerApi.PicUrl ->
+            { dinner | picUrl = newValue }
