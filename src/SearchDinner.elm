@@ -121,7 +121,7 @@ update msg model =
             ( { model | waiting = True }, searchDinners model.searchText SearchResults )
 
         SearchIngredients dinner ->
-            ( { model | dialogType = ShowIngredientsDia, currentDinner = dinner }, getIngredients dinner.name SearchIngredientsResult )
+            ( { model | dialogType = ShowIngredientsDia, currentDinner = dinner }, getIngredients dinner.id SearchIngredientsResult )
 
         SearchIngredientsResult (Ok ingredientsFound) ->
             ( { model | ingredients = ingredientsFound }, Cmd.none )

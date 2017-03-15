@@ -39,8 +39,8 @@ type DinnerMember
 
 webServiceURl : String
 webServiceURl =
-    --"http://localhost:49203/API/MiddagsApp/"
-    "https://middagsapp.azurewebsites.net/API/MiddagsApp/"
+    --"https://middagsapp.azurewebsites.net/API/MiddagsApp/"
+    "http://localhost:49203/API/MiddagsApp/"
 
 
 getRandomDinner : (Result Http.Error (List Dinner) -> msg) -> Cmd msg
@@ -106,14 +106,14 @@ searchDinners searchText msg =
         Http.send msg request
 
 
-getIngredients : String -> (Result Http.Error (List Ingredient) -> msg) -> Cmd msg
-getIngredients dinnerName msg =
+getIngredients : Int -> (Result Http.Error (List Ingredient) -> msg) -> Cmd msg
+getIngredients dinnerId msg =
     let
         url =
             webServiceURl ++ "GetIngredients"
 
         request =
-            Http.post url (Http.jsonBody (Encode.string dinnerName)) (JsonD.list ingredientDecoder)
+            Http.post url (Http.jsonBody (Encode.int dinnerId)) (JsonD.list ingredientDecoder)
     in
         Http.send msg request
 
