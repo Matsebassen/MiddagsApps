@@ -1,6 +1,6 @@
 module SearchDinner exposing (..)
 
-import ServerApi exposing (Dinner, Ingredient, IngredientMember, DinnerMember, getRandomDinner, searchDinners, addNewDinner, getIngredients, editDinner, editDinnerIngredients)
+import ServerApi exposing (Dinner, Ingredient, IngredientMember, DinnerMember, getRandomDinner, searchDinners, addNewDinner, getIngredients, editDinner, editDinnerIngredients, handleHttpError)
 import Html exposing (..)
 import Css as Css exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
@@ -51,6 +51,12 @@ type DialogType
     | EditDinnerDia
     | EditIngredientsDia
 
+type MatrButton
+    = MiniFab
+    | MiniFabAccent
+    | DiagClose
+    | Normal
+
 
 
 --INIT
@@ -98,21 +104,7 @@ update msg model =
             ( { model | dinners = dinnersFound, waiting = False }, Cmd.none )
 
         SearchResults (Err error) ->
-            case error of
-                Http.BadUrl badUrlMsg ->
-                    update (AddToast "Bad webservice URL") model
-
-                Http.Timeout ->
-                    update (AddToast "The request timed out") model
-
-                Http.NetworkError ->
-                    update (AddToast "Can't contact server") model
-
-                Http.BadStatus badResponse ->
-                    update (AddToast badResponse.body) model
-
-                Http.BadPayload debugMessage badResponse ->
-                    update (AddToast badResponse.body) model
+            update (AddToast (handleHttpError error)) model
 
         SearchText searchTxt ->
             ( { model | searchText = searchTxt }, Cmd.none )
@@ -159,21 +151,7 @@ update msg model =
             (update SearchDinners { model | waiting = False })
 
         EditDinnerResult (Err error) ->
-            case error of
-                Http.BadUrl badUrlMsg ->
-                    update (AddToast "Bad webservice URL") model
-
-                Http.Timeout ->
-                    update (AddToast "The request timed out") model
-
-                Http.NetworkError ->
-                    update (AddToast "Can't contact server") model
-
-                Http.BadStatus badResponse ->
-                    update (AddToast ("Bad Status - " ++ badResponse.body)) model
-
-                Http.BadPayload debugMessage badResponse ->
-                    update (AddToast ("Bad payload - " ++ debugMessage ++ "  " ++ badResponse.body)) model
+            update (AddToast (handleHttpError error)) model
 
         KeyDown key ->
             if key == 13 then
@@ -204,9 +182,9 @@ view model =
         , Options.div
             Css.flexFlowRowAlignCenter
             [ materialInput "Search..." SearchText model model.searchText 1
-            , materialMiniFab model SearchDinners "search"
+            , materialButton model MiniFab SearchDinners "search" 2
             ]
-        , materialButton model GetRandomDinner "I feel lucky" 2
+        , materialButton model Normal GetRandomDinner "I feel lucky" 2
         , br [] []
         , Loading.spinner [ Loading.active model.waiting ]
         , List.map2 (dinnerCardCell model) model.dinners (List.range 1 (List.length model.dinners)) |> grid [ css "justify-content" "center" ]
@@ -270,7 +248,7 @@ editDinnerView model =
                 model.mdl
                 [ Dialog.closeOn "click" ]
                 [ text "Cancel" ]
-            , materialButtonCloseDia model EditDinnerInDb "Save" 16
+            , materialButton model DiagClose EditDinnerInDb "Save" 2
             ]
         ]
 
@@ -281,18 +259,6 @@ dinnerCardCell model dinner i =
         [ cardView model dinner i
         ]
 
-
-dynamic : Int -> Model -> Options.Style Msg
-dynamic k model =
-    [ if model.raised == k then
-        Elevation.e16
-      else
-        Elevation.e2
-    , Elevation.transition 250
-    , Options.onMouseEnter (Raise k)
-    , Options.onMouseLeave (Raise -1)
-    ]
-        |> Options.many
 
 
 cardView : Model -> Dinner -> Int -> Html Msg
@@ -345,12 +311,6 @@ cardView model dinner i =
             ]
         ]
 
-
-white : Options.Property c m
-white =
-    Color.text Color.white
-
-
 ingredientsTable : Model -> Html Msg
 ingredientsTable model =
     table [ align "center" ]
@@ -386,7 +346,7 @@ editIngredientView model =
                     [ (Options.styled p [ Typo.title ] [ text "Ingredients" ])
                     ]
                 , editIngredientsTable model
-                , materialMiniFab model AddIngredient "add_circle"
+                , materialButton model MiniFab AddIngredient "add_circle" 1
                 ]
             ]
         , Dialog.actions []
@@ -395,7 +355,7 @@ editIngredientView model =
                 model.mdl
                 [ Dialog.closeOn "click" ]
                 [ text "Close" ]
-            , materialButtonCloseDia model EditIngrInDb "Save" 15
+            , materialButton model DiagClose EditIngrInDb "Save" 15
             ]
         ]
 
@@ -421,7 +381,7 @@ editRenderIngredients model ingr =
         [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.IngredientName ingr) model ingr.name 1 ingr.id 10 ]
         , Table.td [] [ ingredientInputMaterial "Qty" (EditIngredient ServerApi.Qty ingr) model ingr.qty 2 ingr.id 3 ]
         , Table.td [] [ ingredientInputMaterial "Unit" (EditIngredient ServerApi.Unit ingr) model ingr.unit 3 ingr.id 3 ]
-        , Table.td [] [ materialMiniFabAccent model (RemoveIngredient ingr) "remove_circle" ]
+        , Table.td [] [ materialButton model MiniFabAccent (RemoveIngredient ingr) "remove_circle" 1 ]
         ]
 
 
@@ -450,33 +410,56 @@ onKeyDown tagger =
 
 -- MATERIAL UI CONSTRUCTORS
 
+materialButton : Model -> MatrButton -> Msg -> String -> Int -> Html Msg
+materialButton model matrButton msg display group =
+    let 
+        (idGroup ,buttonOptions, displayOptions) = 
+            case matrButton of
+                Normal -> 
+                    ([2, group ]
+                    , [ Button.raised
+                    , Button.colored
+                    , Button.ripple
+                    , Options.onClick msg
+                    , css "margin-top" "12px"
+                    ]
+                    ,[ text display ] )      
 
-materialButton : Model -> Msg -> String -> Int -> Html Msg
-materialButton model msg butText group =
-    Button.render Mdl
-        [ 1, group ]
+                MiniFab ->                    
+                    ([3, group ]
+                    ,[ Options.onClick (msg)
+                    , Button.minifab
+                    , Button.colored
+                    , css "margin-top" "15px"
+                    ]
+                    ,[ Icon.view display [ Icon.size24 ] ])
+                        
+
+                MiniFabAccent ->
+                    ([4, group ]
+                    ,[ Options.onClick (msg)
+                    , Button.minifab
+                    , Button.colored
+                    , Button.accent
+                    ]
+                    ,[ Icon.i display ])
+                    
+
+                DiagClose ->  
+                    ([5, group ]
+                    ,[ Button.raised
+                    , Button.colored
+                    , Button.ripple
+                    , Options.onClick msg
+                    , Dialog.closeOn "click"
+                    ]
+                    ,[ text display ])
+    in         
+        Button.render Mdl
+        idGroup        
         model.mdl
-        [ Button.raised
-        , Button.colored
-        , Button.ripple
-        , Options.onClick msg
-        , css "margin-top" "12px"
-        ]
-        [ text butText ]
-
-
-materialButtonCloseDia : Model -> Msg -> String -> Int -> Html Msg
-materialButtonCloseDia model msg butText group =
-    Button.render Mdl
-        [ 3, group ]
-        model.mdl
-        [ Button.raised
-        , Button.colored
-        , Button.ripple
-        , Options.onClick msg
-        , Dialog.closeOn "click"
-        ]
-        [ text butText ]
+        buttonOptions
+        displayOptions     
 
 
 materialInput : String -> (String -> Msg) -> Model -> String -> Int -> Html Msg
@@ -515,35 +498,25 @@ ingredientInputMaterial placeHolder msg model defValue x y txtWidth =
         ]
 
 
-materialMiniFab : Model -> Msg -> String -> Html Msg
-materialMiniFab model msg icon =
-    Button.render Mdl
-        [ 4, 1 ]
-        model.mdl
-        [ Options.onClick (msg)
-        , Button.minifab
-        , Button.colored
-        , css "margin-top" "15px"
-        ]
-        [ Icon.view icon [ Icon.size24 ] ]
-
-
-materialMiniFabAccent : Model -> Msg -> String -> Html Msg
-materialMiniFabAccent model msg icon =
-    Button.render Mdl
-        [ 5, 1 ]
-        model.mdl
-        [ Options.onClick (msg)
-        , Button.minifab
-        , Button.colored
-        , Button.accent
-        ]
-        [ Icon.i icon ]
-
-
 
 -- GETTERS & SETTERS
 
+dynamic : Int -> Model -> Options.Style Msg
+dynamic k model =
+    [ if model.raised == k then
+        Elevation.e16
+      else
+        Elevation.e2
+    , Elevation.transition 250
+    , Options.onMouseEnter (Raise k)
+    , Options.onMouseLeave (Raise -1)
+    ]
+        |> Options.many
+
+
+white : Options.Property c m
+white =
+    Color.text Color.white
 
 addNewIngredient : Model -> List Ingredient
 addNewIngredient model =

@@ -1,6 +1,6 @@
 module AddDinner exposing (..)
 
-import ServerApi exposing (Dinner, Ingredient, IngredientMember, DinnerMember, getRandomDinner, addNewDinner)
+import ServerApi exposing (Dinner, Ingredient, IngredientMember, DinnerMember, getRandomDinner, addNewDinner, handleHttpError)
 import Css as Css exposing (..)
 import Html exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
@@ -54,13 +54,19 @@ type Msg
     | KeyDown Int
     | Snackbar (Snackbar.Msg Int)
     | Nop
-    | InputAsList
     | IngredientsListInput String
     | IncrementCounter
+    | AddToast String
 
 
 type alias Mdl =
     Material.Model
+
+type MatrButton
+    = MiniFab
+    | MiniFabAccent
+    | DiagOpen
+    | Normal
 
 
 
@@ -86,21 +92,7 @@ update msg model =
             addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "" 0) [ (Ingredient "" "" "" 1) ] "" 2 False Snackbar.model model.mdl)
 
         JsonResponse (Err error) ->
-            case error of
-                Http.BadUrl badUrlMsg ->
-                    addToast (Snackbar.toast 1 ("That was a shitty url. Message: " ++ badUrlMsg)) { model | waiting = False }
-
-                Http.Timeout ->
-                    addToast (Snackbar.toast 1 "The request timed out") { model | waiting = False }
-
-                Http.NetworkError ->
-                    addToast (Snackbar.toast 1 "Can't contact server") { model | waiting = False }
-
-                Http.BadStatus badResponse ->
-                    addToast (Snackbar.toast 1 (badResponse.body)) { model | waiting = False }
-
-                Http.BadPayload debugMessage badResponse ->
-                    addToast (Snackbar.toast 1 "Bad payload. Perhaps wrong JSON format?") { model | waiting = False }
+            update (AddToast (handleHttpError error)) model
 
         EditDinner memberType newValue ->
             ( { model | dinner = editDinnerMember memberType newValue model.dinner }, Cmd.none )
@@ -128,9 +120,6 @@ update msg model =
         Nop ->
             ( model, Cmd.none )
 
-        InputAsList ->
-            ( model, Cmd.none )
-
         IngredientsListInput input ->
             ( { model | inputIngredients = input }, Cmd.none )
 
@@ -142,6 +131,9 @@ update msg model =
 
         Mdl msg_ ->
             Material.update Mdl msg_ model
+        
+        AddToast message ->
+            addToast (Snackbar.toast 1 message) { model | waiting = False }
 
 
 
@@ -162,7 +154,7 @@ view model =
                 div [] []
             ]
         , p [] []
-        , materialButton model AddDinner "Add Dinner to DB" 2
+        , materialButton model Normal AddDinner "Add Dinner to DB" 2
         , Snackbar.view model.snackbar |> Html.map Snackbar
         , dialogView model
         ]
@@ -201,7 +193,7 @@ ingredientView model =
     div []
         [ Options.div Css.flexFlowRowAlignCenter
             [ (Options.styled p [ Typo.title ] [ text "Ingredients" ])
-            , materialButtonDiagOpen model InputAsList "playlist_add"
+            , materialButton model DiagOpen  Nop "playlist_add" 1
             ]
         , ingredientsTable model
         ]
@@ -222,7 +214,7 @@ ingredientViewCard model =
                     Css.flexFlowRowAlignCenter
                     [ div []
                         [ ingredientView model
-                        , materialMiniFab model AddIngredient "add_circle"
+                        , materialButton model MiniFab  AddIngredient "add_circle" 1
                         ]
                     ]
                 ]
@@ -251,7 +243,7 @@ renderIngredients model ingr =
         [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.IngredientName ingr) model ingr.name 1 ingr.id 10 ]
         , Table.td [] [ ingredientInputMaterial "Qty" (EditIngredient ServerApi.Qty ingr) model ingr.qty 2 ingr.id 3 ]
         , Table.td [] [ ingredientInputMaterial "Unit" (EditIngredient ServerApi.Unit ingr) model ingr.unit 3 ingr.id 3 ]
-        , Table.td [] [ materialMiniFabAccent model (RemoveIngredient ingr) "remove_circle" ]
+        , Table.td [] [ materialButton model MiniFabAccent (RemoveIngredient ingr) "remove_circle" 1 ]
         ]
 
 
@@ -343,58 +335,59 @@ ingredientInputMaterial placeHolder msg model defValue x y txtWidth =
             []
         ]
 
+materialButton : Model -> MatrButton -> Msg -> String -> Int -> Html Msg
+materialButton model matrButton msg display group =
+    let 
+        (idGroup ,buttonOptions, displayOptions) = 
+            case matrButton of
+                Normal -> 
+                    ([2, group ]
+                    ,[                   
+                    Button.raised
+                    , Button.colored
+                    , Button.ripple  
+                    , Options.onClick msg
+                    , css "margin" "40px 12px"                        
+                    ]
+                    , [ text display ])
 
-materialButton : Model -> Msg -> String -> Int -> Html Msg
-materialButton model msg butText group =
-    Button.render Mdl
-        [ group ]
+                MiniFab ->                    
+                    ([3, group ]
+                    ,[   
+                    Button.minifab
+                    , Button.colored
+                    , Options.onClick msg
+                    ]
+                    ,[ Icon.i display ])
+                        
+
+                MiniFabAccent ->
+                    ([4, group ]
+                    ,[   
+                    Button.minifab
+                    , Button.colored
+                    , Button.accent
+                    , Options.onClick msg
+                    ]
+                    ,[ Icon.i display ])
+                    
+
+                DiagOpen ->  
+                    ([5, group ]
+                    ,[   
+                    Button.minifab
+                    , Button.colored     
+                    , Dialog.openOn "click"
+                    , Options.onClick msg
+                    , css "margin-top" "-8px"        
+                    ]
+                    ,[ Icon.view display [ Icon.size36 ] ])
+    in         
+        Button.render Mdl
+        idGroup        
         model.mdl
-        [ Button.raised
-        , Button.colored
-        , Button.ripple
-        , Options.onClick msg
-        , css "margin" "40px 12px"
-        ]
-        [ text butText ]
-
-
-materialButtonDiagOpen : Model -> Msg -> String -> Html Msg
-materialButtonDiagOpen model msg icon =
-    Button.render Mdl
-        [ 5, 1 ]
-        model.mdl
-        [ Button.minifab
-        , Button.colored
-        , Options.onClick msg
-        , Dialog.openOn "click"
-        , css "margin-top" "-8px"
-        ]
-        [ Icon.view icon [ Icon.size36 ] ]
-
-
-materialMiniFabAccent : Model -> Msg -> String -> Html Msg
-materialMiniFabAccent model msg icon =
-    Button.render Mdl
-        [ 3, 1 ]
-        model.mdl
-        [ Options.onClick (msg)
-        , Button.minifab
-        , Button.colored
-        , Button.accent
-        ]
-        [ Icon.i icon ]
-
-
-materialMiniFab : Model -> Msg -> String -> Html Msg
-materialMiniFab model msg icon =
-    Button.render Mdl
-        [ 4, 1 ]
-        model.mdl
-        [ Options.onClick (msg)
-        , Button.minifab
-        , Button.colored
-        ]
-        [ Icon.view icon [ Icon.size36 ] ]
+        buttonOptions
+        displayOptions     
 
 
 addToast : Snackbar.Contents Int -> Model -> ( Model, Cmd Msg )
@@ -453,7 +446,6 @@ sumIngrName lst =
     case lst of
         [] ->
             ""
-
         x :: xs ->
             x ++ " " ++ sumIngrName (xs)
 

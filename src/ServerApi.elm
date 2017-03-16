@@ -39,8 +39,8 @@ type DinnerMember
 
 webServiceURl : String
 webServiceURl =
-    --"https://middagsapp.azurewebsites.net/API/MiddagsApp/"
-    "http://localhost:49203/API/MiddagsApp/"
+    "https://middagsapp.azurewebsites.net/API/MiddagsApp/"
+    --"http://localhost:49203/API/MiddagsApp/"
 
 
 getRandomDinner : (Result Http.Error (List Dinner) -> msg) -> Cmd msg
@@ -164,3 +164,21 @@ ingredientEncoder ingredient =
 jsonResponseDecoder : JsonD.Decoder String
 jsonResponseDecoder =
     JsonD.string
+
+handleHttpError : Http.Error -> String
+handleHttpError error =
+    case error of
+        Http.BadUrl badUrlMsg ->
+            "Bad webservice URL"
+
+        Http.Timeout ->
+            "The request timed out"
+
+        Http.NetworkError ->
+            "Can't contact server"
+
+        Http.BadStatus badResponse ->
+            "Bad status from Webservice: " ++ badResponse.body
+
+        Http.BadPayload debugMessage badResponse ->
+            debugMessage ++ " - " ++  badResponse.body
