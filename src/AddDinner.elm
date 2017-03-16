@@ -69,7 +69,6 @@ type MatrButton
     | Normal
 
 
-
 --INIT
 
 
@@ -164,11 +163,11 @@ dinnerView : Model -> Html Msg
 dinnerView model =
     div []
         [ (Options.styled p [ Typo.title ] [ text "New Dinner" ])
-        , dinnerInputMaterial "Name of dinner" (EditDinner ServerApi.DinnerName) model model.dinner.name 1
-        , dinnerInputMaterial "Portions" (EditDinner ServerApi.Portions) model model.dinner.portions 2
-        , dinnerInputMaterial "Tags" (EditDinner ServerApi.Tags) model model.dinner.tags 3
-        , dinnerInputMaterial "Picture Url" (EditDinner ServerApi.PicUrl) model model.dinner.picUrl 4
-        , dinnerInputMaterial "Url (optional)" (EditDinner ServerApi.Url) model model.dinner.url 5
+        , dinnerInputMaterial "Name of dinner" (EditDinner ServerApi.DinnerName) model model.dinner.name False 1
+        , dinnerInputMaterial "Portions" (EditDinner ServerApi.Portions) model model.dinner.portions False 2
+        , dinnerInputMaterial "Tags" (EditDinner ServerApi.Tags) model model.dinner.tags False 3
+        , dinnerInputMaterial "Picture Url (optional)" (EditDinner ServerApi.PicUrl) model model.dinner.picUrl True 4
+        , dinnerInputMaterial "Url (optional)" (EditDinner ServerApi.Url) model model.dinner.url True 5
         ]
 
 
@@ -240,9 +239,9 @@ ingredientsTable model =
 renderIngredients : Model -> Ingredient -> Html Msg
 renderIngredients model ingr =
     Table.tr []
-        [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.IngredientName ingr) model ingr.name 1 ingr.id 10 ]
-        , Table.td [] [ ingredientInputMaterial "Qty" (EditIngredient ServerApi.Qty ingr) model ingr.qty 2 ingr.id 3 ]
-        , Table.td [] [ ingredientInputMaterial "Unit" (EditIngredient ServerApi.Unit ingr) model ingr.unit 3 ingr.id 3 ]
+        [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.IngredientName ingr) model ingr.name False 1 ingr.id 10 ]
+        , Table.td [] [ ingredientInputMaterial "Qty" (EditIngredient ServerApi.Qty ingr) model ingr.qty True 2 ingr.id 3 ]
+        , Table.td [] [ ingredientInputMaterial "Unit" (EditIngredient ServerApi.Unit ingr) model ingr.unit True 3 ingr.id 3 ]
         , Table.td [] [ materialButton model MiniFabAccent (RemoveIngredient ingr) "remove_circle" 1 ]
         ]
 
@@ -301,8 +300,8 @@ black =
     Color.text Color.black
 
 
-dinnerInputMaterial : String -> (String -> Msg) -> Model -> String -> Int -> Html Msg
-dinnerInputMaterial placeHolder msg model defValue group =
+dinnerInputMaterial : String -> (String -> Msg) -> Model -> String -> Bool -> Int -> Html Msg
+dinnerInputMaterial placeHolder msg model defValue canBeEmpty group =
     div []
         [ Textfield.render Mdl
             [ 1, group ]
@@ -312,25 +311,29 @@ dinnerInputMaterial placeHolder msg model defValue group =
             , Textfield.floatingLabel
             , Options.onInput msg
             , Textfield.value defValue
+            , (Textfield.error ("Can't be empty") 
+                |> Options.when (String.length defValue == 0 && (List.length model.ingredients > 1))) |> Options.when (not <| canBeEmpty )
             ]
             []
         ]
 
 
-ingredientInputMaterial : String -> (String -> Msg) -> Model -> String -> Int -> Int -> Int -> Html Msg
-ingredientInputMaterial placeHolder msg model defValue x y txtWidth =
+ingredientInputMaterial : String -> (String -> Msg) -> Model -> String -> Bool -> Int -> Int -> Int -> Html Msg
+ingredientInputMaterial placeHolder msg model defValue canBeEmpty x y txtWidth =
     div []
         [ Textfield.render Mdl
             [ 2, x, y ]
             model.mdl
             [ Textfield.label placeHolder
-            , Textfield.text_
+            , Textfield.text_            
             , Options.onInput msg
             , Textfield.value defValue
             , Options.attribute (onKeyDown KeyDown)
             , css "width" (toString txtWidth ++ "rem")
             , css "margin-top" "-1rem"
             , css "margin-bottom" "-1rem"
+            , (Textfield.error ("Can't be empty") 
+                |> Options.when (String.length defValue == 0)) |> Options.when (not <| canBeEmpty )
             ]
             []
         ]
