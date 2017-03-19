@@ -333,7 +333,7 @@ ingredientInputMaterial placeHolder msg model defValue canBeEmpty x y txtWidth =
             , css "margin-top" "-1rem"
             , css "margin-bottom" "-1rem"
             , (Textfield.error ("Can't be empty") 
-                |> Options.when (String.length defValue == 0)) |> Options.when (not <| canBeEmpty )
+                |> Options.when (String.length defValue == 0  && (List.length model.ingredients > 1))) |> Options.when (not <| canBeEmpty )
             ]
             []
         ]

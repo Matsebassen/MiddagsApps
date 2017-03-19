@@ -22,6 +22,15 @@ type alias Ingredient =
     , id : Int
     }
 
+type alias ShopIngredient =
+    { name : String
+    , qty : String
+    , unit : String
+    , haveBought : Bool
+    , id : Int
+    }
+
+
 
 type IngredientMember
     = IngredientName
@@ -39,8 +48,8 @@ type DinnerMember
 
 webServiceURl : String
 webServiceURl =
-    "https://middagsapp.azurewebsites.net/API/MiddagsApp/"
-    --"http://localhost:49203/API/MiddagsApp/"
+    --"https://middagsapp.azurewebsites.net/API/MiddagsApp/"
+    "http://localhost:49203/API/MiddagsApp/"
 
 
 getRandomDinner : (Result Http.Error (List Dinner) -> msg) -> Cmd msg
@@ -117,6 +126,39 @@ getIngredients dinnerId msg =
     in
         Http.send msg request
 
+addShopIngredient : String -> (Result Http.Error (List ShopIngredient) -> msg) -> Cmd msg
+addShopIngredient shopIngredient msg =
+    let
+        url =
+            webServiceURl ++ "AddIngredientToShoppingList"
+
+        request =
+            Http.post url (Http.jsonBody (Encode.string shopIngredient)) (JsonD.list shopIngredientDecoder)
+    in
+        Http.send msg request
+
+changeShopHaveBought : ShopIngredient -> (Result Http.Error (List ShopIngredient) -> msg) -> Cmd msg
+changeShopHaveBought shopIngredient msg =
+    let
+        url =
+            webServiceURl ++ "ChangeShopHaveBought"
+
+        request =
+            Http.post url (Http.jsonBody (shopIngredientEncoder shopIngredient)) (JsonD.list shopIngredientDecoder)
+    in
+        Http.send msg request
+
+getShoppingList : (Result Http.Error (List ShopIngredient) -> msg) -> Cmd msg
+getShoppingList  msg =
+    let
+        url =
+            webServiceURl ++ "GetShoppingList"
+
+        request =
+            Http.get url (JsonD.list shopIngredientDecoder)
+    in
+        Http.send msg request
+
 
 dinnerDecoder : JsonD.Decoder Dinner
 dinnerDecoder =
@@ -137,6 +179,14 @@ ingredientDecoder =
         (JsonD.field "unit" JsonD.string)
         (JsonD.field "id" JsonD.int)
 
+shopIngredientDecoder : JsonD.Decoder ShopIngredient
+shopIngredientDecoder =
+    JsonD.map5 ShopIngredient
+        (JsonD.field "name" JsonD.string)
+        (JsonD.field "qty" JsonD.string)
+        (JsonD.field "unit" JsonD.string)
+        (JsonD.field "haveBought" JsonD.bool)
+        (JsonD.field "id" JsonD.int)
 
 dinnerEncoder : Dinner -> List Ingredient -> Encode.Value
 dinnerEncoder dinner ingredients =
@@ -158,6 +208,17 @@ ingredientEncoder ingredient =
         , ( "qty", Encode.string ingredient.qty )
         , ( "unit", Encode.string ingredient.unit )
         , ( "id", Encode.int ingredient.id )
+        ]
+
+
+shopIngredientEncoder : ShopIngredient -> Encode.Value
+shopIngredientEncoder shopIngredient =
+    Encode.object
+        [ ( "name", Encode.string shopIngredient.name )
+        , ( "qty", Encode.string shopIngredient.qty )
+        , ( "unit", Encode.string shopIngredient.unit )
+        , ( "haveBought", Encode.bool shopIngredient.haveBought )
+        , ( "id", Encode.int shopIngredient.id )
         ]
 
 

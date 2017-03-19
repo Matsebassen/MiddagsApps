@@ -255,7 +255,7 @@ editDinnerView model =
 
 dinnerCardCell : Model -> Dinner -> Int -> Material.Grid.Cell Msg
 dinnerCardCell model dinner i =
-    cell (Css.cellStyle 256)
+    cell (Css.cellStyle "256")
         [ cardView model dinner i
         ]
 

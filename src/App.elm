@@ -4,6 +4,7 @@ module App exposing (..)
 
 import AddDinner
 import SearchDinner
+import ShoppingList
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Material
@@ -18,6 +19,7 @@ type alias Model =
     , mdl : Material.Model
     , addDinnerModel : AddDinner.Model
     , searchDinnerModel : SearchDinner.Model
+    , shoppingListModel : ShoppingList.Model
     }
 
 
@@ -27,7 +29,7 @@ type alias Mdl =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model 0 Material.model AddDinner.init SearchDinner.init, Cmd.none )
+    ( Model 2 Material.model AddDinner.init SearchDinner.init ShoppingList.init, Cmd.none )
 
 
 
@@ -39,6 +41,7 @@ type Msg
     | SelectTab Int
     | AddDinnerMsg AddDinner.Msg
     | SearchDinnerMsg SearchDinner.Msg
+    | ShoppingListMsg ShoppingList.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -66,6 +69,14 @@ update msg model =
                 { model | searchDinnerModel = subMdl }
                     ! [ Cmd.map SearchDinnerMsg subCmd ]
 
+        ShoppingListMsg m ->
+            let
+                ( subMdl, subCmd ) =
+                    ShoppingList.update m model.shoppingListModel
+            in
+                { model | shoppingListModel = subMdl }
+                    ! [ Cmd.map ShoppingListMsg subCmd ]                    
+
 
 
 -- SUBSCRIPTIONS
@@ -73,7 +84,11 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    case model.selectedTab of
+        2 ->
+            Sub.map ShoppingListMsg (ShoppingList.subscriptions model.shoppingListModel)
+        _ ->
+            Sub.none
 
 
 
@@ -87,8 +102,8 @@ view model =
         [ Layout.onSelectTab SelectTab
         ]
         { header = [ h2 [ style [ ( "padding", "0rem" ) ] ] [ text "Middag" ] ]
-        , drawer = [materialFlatButton model "Search" 0, materialFlatButton model "Add Dinner" 1 ]
-        , tabs = ( [ text "Search", text "Add Dinner" ], [ Color.background (Color.color Color.Teal Color.S600) ] )
+        , drawer = [materialFlatButton model "Search" 0, materialFlatButton model "Add Dinner" 1, materialFlatButton model "Shopping List" 2 ]
+        , tabs = ( [ text "Search", text "Add Dinner", text "Shopping List" ], [ Color.background (Color.color Color.Teal Color.S600) ] )
         , main = [ viewBody model ]
         }
 
@@ -108,10 +123,16 @@ viewBody model =
                 , Html.map AddDinnerMsg <| AddDinner.view model.addDinnerModel
                 ]
 
+        2 ->
+            div []
+                [ br [] []
+                , Html.map ShoppingListMsg <| ShoppingList.view model.shoppingListModel
+                ]        
+
         _ ->
             div []
                 [ br [] []
-                , Html.map SearchDinnerMsg <| SearchDinner.view model.searchDinnerModel
+                , Html.map ShoppingListMsg <| ShoppingList.view model.shoppingListModel
                 ]
 
 materialFlatButton : Model -> String -> Int -> Html Msg

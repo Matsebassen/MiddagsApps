@@ -25,12 +25,12 @@ flexFlowRowAlignCenter =
     , css "justify-content" "center"
     ]
 
-cellStyle : Int -> List (Options.Style a)
-cellStyle h =
+cellStyle : String -> List (Options.Style a)
+cellStyle width =
     [ css "text-sizing" "border-box"
     , css "padding-left" "8px"
     , css "padding-top" "4px"
-    , css "width" "256px"
+    , css "width" (width ++ "px")
     , Grid.size Grid.Tablet 6
     , Grid.size Grid.Desktop 12
     , Grid.size Grid.Phone 4
