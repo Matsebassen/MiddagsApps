@@ -1,6 +1,6 @@
 module SearchDinner exposing (..)
 
-import ServerApi exposing (Dinner, Ingredient, IngredientMember, DinnerMember, getRandomDinner, searchDinners, addNewDinner, getIngredients, editDinner, editDinnerIngredients, handleHttpError)
+import ServerApi exposing (Dinner, Ingredient, IngredientMember, DinnerMember, getRandomDinner, searchDinners, addNewDinner, addDinnerToShopList, getIngredients, editDinner, editDinnerIngredients, handleHttpError)
 import Html exposing (..)
 import Css as Css exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
@@ -82,6 +82,8 @@ type Msg
     | EditIngredient IngredientMember Ingredient String
     | EditIngrInDb
     | RemoveIngredient Ingredient
+    | AddDinnerToShopList
+    | JsonResponse (Result Http.Error (String))
     | EditIngredientsView
     | EditDinnerDialog Dinner
     | EditDinner DinnerMember String
@@ -132,6 +134,15 @@ update msg model =
 
         RemoveIngredient ingredient ->
             ( { model | ingredients = (List.filterMap (removeIngredientFromList ingredient (List.length model.ingredients)) model.ingredients) }, Cmd.none )
+
+        AddDinnerToShopList ->
+            (model, addDinnerToShopList model.currentDinner model.ingredients JsonResponse )
+
+        JsonResponse (Ok response) ->
+            update (AddToast response) model 
+
+        JsonResponse (Err error) ->
+            update (AddToast (handleHttpError error)) model          
 
         EditIngredientsView ->
             ( { model | dialogType = EditIngredientsDia }, Cmd.none )
@@ -226,6 +237,7 @@ showIngredientView model =
                 model.mdl
                 [ Options.onClick EditIngredientsView ]
                 [ text "Edit" ]
+            , materialButton model DiagClose AddDinnerToShopList "Buy" 3
             ]
         ]
 
@@ -338,12 +350,12 @@ renderIngredients ingredient =
 editIngredientView : Model -> Html Msg
 editIngredientView model =
     Dialog.view
-        [ css "width" "500px" ]
+        [ css "width" "420px" ]
         [ Dialog.title [] [ text "Ingredients" ]
         , Dialog.content []
             [ div []
                 [ Options.div Css.flexFlowRowAlignCenter
-                    [ (Options.styled p [ Typo.title ] [ text "Ingredients" ])
+                    [ (Options.styled p [ Typo.title ] [ ])
                     ]
                 , editIngredientsTable model
                 , materialButton model MiniFab AddIngredient "add_circle" 1
@@ -362,7 +374,7 @@ editIngredientView model =
 
 editIngredientsTable : Model -> Html Msg
 editIngredientsTable model =
-    Table.table []
+    Table.table [css "margin-left" "-15px"]
         [ Table.thead []
             [ Table.tr []
                 [ Table.th [] [ text "Name" ]
@@ -378,9 +390,9 @@ editIngredientsTable model =
 editRenderIngredients : Model -> Ingredient -> Html Msg
 editRenderIngredients model ingr =
     Table.tr []
-        [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.IngredientName ingr) model ingr.name 1 ingr.id 10 ]
-        , Table.td [] [ ingredientInputMaterial "Qty" (EditIngredient ServerApi.Qty ingr) model ingr.qty 2 ingr.id 3 ]
-        , Table.td [] [ ingredientInputMaterial "Unit" (EditIngredient ServerApi.Unit ingr) model ingr.unit 3 ingr.id 3 ]
+        [ Table.td [] [ ingredientInputMaterial "Name" (EditIngredient ServerApi.IngredientName ingr) model ingr.name 1 ingr.id 8 ]
+        , Table.td [] [ ingredientInputMaterial "Qty" (EditIngredient ServerApi.Qty ingr) model ingr.qty 2 ingr.id 2 ]
+        , Table.td [] [ ingredientInputMaterial "Unit" (EditIngredient ServerApi.Unit ingr) model ingr.unit 3 ingr.id 2 ]
         , Table.td [] [ materialButton model MiniFabAccent (RemoveIngredient ingr) "remove_circle" 1 ]
         ]
 

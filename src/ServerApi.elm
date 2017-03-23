@@ -24,8 +24,7 @@ type alias Ingredient =
 
 type alias ShopIngredient =
     { name : String
-    , qty : String
-    , unit : String
+    , desc : String
     , haveBought : Bool
     , id : Int
     }
@@ -48,8 +47,8 @@ type DinnerMember
 
 webServiceURl : String
 webServiceURl =
-    --"https://middagsapp.azurewebsites.net/API/MiddagsApp/"
-    "http://localhost:49203/API/MiddagsApp/"
+    "https://middagsapp.azurewebsites.net/API/MiddagsApp/"
+    --"http://localhost:49203/API/MiddagsApp/"
 
 
 getRandomDinner : (Result Http.Error (List Dinner) -> msg) -> Cmd msg
@@ -84,6 +83,17 @@ editDinner dinner ingredients msg =
     let
         url =
             webServiceURl ++ "EditDinner"
+
+        request =
+            Http.post url (Http.jsonBody (dinnerEncoder dinner ingredients)) jsonResponseDecoder
+    in
+        Http.send msg request
+
+addDinnerToShopList : Dinner -> List Ingredient -> (Result Http.Error String -> msg) -> Cmd msg
+addDinnerToShopList dinner ingredients msg =
+    let
+        url =
+            webServiceURl ++ "addDinnerToShopList"
 
         request =
             Http.post url (Http.jsonBody (dinnerEncoder dinner ingredients)) jsonResponseDecoder
@@ -126,22 +136,22 @@ getIngredients dinnerId msg =
     in
         Http.send msg request
 
-addShopIngredient : String -> (Result Http.Error (List ShopIngredient) -> msg) -> Cmd msg
+addShopIngredient : ShopIngredient -> (Result Http.Error (List ShopIngredient) -> msg) -> Cmd msg
 addShopIngredient shopIngredient msg =
     let
         url =
             webServiceURl ++ "AddIngredientToShoppingList"
 
         request =
-            Http.post url (Http.jsonBody (Encode.string shopIngredient)) (JsonD.list shopIngredientDecoder)
+            Http.post url (Http.jsonBody (shopIngredientEncoder shopIngredient)) (JsonD.list shopIngredientDecoder)
     in
         Http.send msg request
 
-changeShopHaveBought : ShopIngredient -> (Result Http.Error (List ShopIngredient) -> msg) -> Cmd msg
-changeShopHaveBought shopIngredient msg =
+editShopIngredient : ShopIngredient -> (Result Http.Error (List ShopIngredient) -> msg) -> Cmd msg
+editShopIngredient shopIngredient msg =
     let
         url =
-            webServiceURl ++ "ChangeShopHaveBought"
+            webServiceURl ++ "EditShopIngredient"
 
         request =
             Http.post url (Http.jsonBody (shopIngredientEncoder shopIngredient)) (JsonD.list shopIngredientDecoder)
@@ -181,10 +191,9 @@ ingredientDecoder =
 
 shopIngredientDecoder : JsonD.Decoder ShopIngredient
 shopIngredientDecoder =
-    JsonD.map5 ShopIngredient
+    JsonD.map4 ShopIngredient
         (JsonD.field "name" JsonD.string)
-        (JsonD.field "qty" JsonD.string)
-        (JsonD.field "unit" JsonD.string)
+        (JsonD.field "desc" JsonD.string)
         (JsonD.field "haveBought" JsonD.bool)
         (JsonD.field "id" JsonD.int)
 
@@ -215,8 +224,7 @@ shopIngredientEncoder : ShopIngredient -> Encode.Value
 shopIngredientEncoder shopIngredient =
     Encode.object
         [ ( "name", Encode.string shopIngredient.name )
-        , ( "qty", Encode.string shopIngredient.qty )
-        , ( "unit", Encode.string shopIngredient.unit )
+        , ( "desc", Encode.string shopIngredient.desc )
         , ( "haveBought", Encode.bool shopIngredient.haveBought )
         , ( "id", Encode.int shopIngredient.id )
         ]

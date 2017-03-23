@@ -1,6 +1,6 @@
 module ShoppingList exposing (..)
 
-import ServerApi exposing (ShopIngredient, handleHttpError, getShoppingList, addShopIngredient, changeShopHaveBought)
+import ServerApi exposing (ShopIngredient, handleHttpError, getShoppingList, addShopIngredient, editShopIngredient)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
@@ -12,6 +12,7 @@ import Material
 import Material.Button as Button
 import Material.Card as Card
 import Material.Color as Color
+import Material.Dialog as Dialog
 import Material.Elevation as Elevation
 import Material.Grid exposing (grid, cell, size, Device(..))
 import Material.Helpers exposing (map1st, map2nd, delay, pure, cssTransitionStep)
@@ -19,6 +20,7 @@ import Material.Icon as Icon
 import Material.Options as Options exposing (css)
 import Material.Snackbar as Snackbar
 import Material.Textfield as Textfield
+import Material.Typography as Typo
 
 --MODEL
 
@@ -26,6 +28,7 @@ import Material.Textfield as Textfield
 type alias Model =
     { searchText : String
     , ingredients : List ShopIngredient
+    , currentIngredient : ShopIngredient
     , raised : Int
     , snackbar : Snackbar.Model Int
     , mdl : Material.Model
@@ -35,8 +38,11 @@ type Msg
     = AddIngredient
     | ChangeHaveBought ShopIngredient
     | SearchText String
+    | SetCurrentIngredient ShopIngredient
+    | EditDesc String
+    | SaveDescInDb
     | GetShoppingList Time
-    | SearchResult (Result Http.Error (List ShopIngredient))
+    | SearchResult (Result Http.Error (List ShopIngredient))    
     | KeyDown Int
     | Raise Int
     | AddToast String
@@ -52,20 +58,29 @@ type alias Mdl =
 
 init : Model
 init =
-    Model "" [] -1 Snackbar.model Material.model
+    Model "" [] (ShopIngredient "" "" False 0) -1 Snackbar.model Material.model
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         AddIngredient ->
-            (model,  addShopIngredient model.searchText SearchResult)
+            ({ model | searchText = ""} ,  addShopIngredient (ShopIngredient model.searchText "" False 0 ) SearchResult )
 
         ChangeHaveBought ingredient ->
-            (  model, changeShopHaveBought ingredient SearchResult)
+            (  model, editShopIngredient ingredient SearchResult)
 
         SearchText searchTxt ->
             ( { model | searchText = searchTxt }, Cmd.none )   
         
+        SetCurrentIngredient ingredient ->
+        ( { model | currentIngredient = ingredient}, Cmd.none)
+
+        EditDesc newDesc ->
+        ( {model | currentIngredient = (let currIngr = model.currentIngredient in {currIngr | desc = newDesc}) } , Cmd.none)
+
+        SaveDescInDb ->
+        (model, editShopIngredient model.currentIngredient SearchResult)        
+
         GetShoppingList time ->
             ( model, getShoppingList SearchResult)
 
@@ -77,7 +92,7 @@ update msg model =
 
         KeyDown key ->
             if key == 13 then
-                ( model, addShopIngredient model.searchText SearchResult )
+                ( { model | searchText = ""}, addShopIngredient (ShopIngredient model.searchText "" False 0 ) SearchResult )
             else
                 ( model, Cmd.none )                 
 
@@ -107,50 +122,105 @@ view : Model -> Html Msg
 view model =
     Options.div
         Css.flexFlowColumnAlignCenter
-        [ h3 [ style [ ( "padding", "0rem" ) ] ] []
+        [ h4 [ style [ ( "padding", "0rem" ) ] ] []
         , Options.div
             Css.flexFlowRowAlignCenter
             [ materialInput "Search..." SearchText model model.searchText 1
-            , materialButton model AddIngredient "search" 2
+            , materialButton model AddIngredient "add_shopping_cart" 2
             ]
         , List.map (ingredientCardCell model) (List.filterMap (haveBought False) model.ingredients) |> grid [ css "justify-content" "center" ]
         , hr[] []
-        , text "Recent"
+        , text "Recently used"
         , List.map (ingredientCardCell model) (List.filterMap (haveBought True) model.ingredients)  |> grid [ css "justify-content" "center" ]
+        , dialogView model
         , Snackbar.view model.snackbar |> Html.map Snackbar
         ]
 
 ingredientCardCell : Model -> ShopIngredient -> Material.Grid.Cell Msg
 ingredientCardCell model ingredient=
     let
-      width = "128"
+      height = "128"
+
+      width = "116"      
     in      
-        cell (Css.cellStyle width)
-            [ cardView model ingredient width
+        cell (Css.shopListCellStyle height width)
+            [ cardView model ingredient height
             ]
 
 
 cardView : Model -> ShopIngredient -> String -> Html Msg
-cardView model ingredient width = 
+cardView model ingredient height = 
     div []
     [Card.view
-    [ css "height" (width ++ "px")
-    , css "width" (width ++ "px")
-    , if (ingredient.haveBought) then
-         Color.background (Color.color Color.Teal Color.S500)
-    else
-        Color.background (Color.color Color.Red Color.S500)
-    , dynamic ingredient.id model
-    , Options.onClick (ChangeHaveBought ingredient)
+    [ css "height" (height ++ "px")
+    , css "width" (height ++ "px")
+    , dynamic ingredient.id model        
     ]
-    [ Card.title [] 
-        [ Card.head [ white ] [ text ingredient.name ] ] ]
+        [ 
+        Card.title 
+            [Options.onClick (ChangeHaveBought {ingredient | haveBought = not ingredient.haveBought })
+            ,css "height" "100px"
+            , backgroundColor ingredient.haveBought True            
+            ] 
+            [ Card.subhead [ white, Typo.subhead ] [ text ingredient.name ] ] 
+        , Card.media
+            [ Card.border 
+            , backgroundColor ingredient.haveBought False
+            , Options.onClick (SetCurrentIngredient ingredient)            
+            , Dialog.openOn "click"
+            , css "height" "28px"            
+            , Typo.subhead
+            , black
+            ]            
+            [ text ingredient.desc]
+        ]    
     ]
 
+
+dialogView : Model -> Html Msg
+dialogView model =
+    Dialog.view
+        []
+        [ Dialog.title [] [ text "Edit Ingredient" ]
+        , Dialog.content []
+            [ materialInput "Description" (EditDesc) model model.currentIngredient.desc 2
+            ]
+        , Dialog.actions []
+            [ Button.render Mdl
+                [ 20, 1 ]
+                model.mdl
+                [ Dialog.closeOn "click" ]
+                [ text "Cancel" ]
+            , Button.render Mdl
+                [ 20, 2 ]
+                model.mdl
+                [ Options.onClick SaveDescInDb, Dialog.closeOn "click" ]
+                [ text "Save" ]
+            ]
+        ]
 
 
 
 -- HELPERS
+
+backgroundColor : Bool -> Bool -> Options.Property c m
+backgroundColor haveBought isTitle =
+    let 
+        cardColor = 
+            if (haveBought) then
+                Color.Teal        
+            else    
+                Color.Red
+        
+        spectrum =
+            if (isTitle) then
+                Color.S500
+            else
+                Color.S300
+
+    in
+        Color.background (Color.color cardColor spectrum)        
+
 
 onKeyDown : (Int -> msg) -> Attribute msg
 onKeyDown tagger =
@@ -159,6 +229,11 @@ onKeyDown tagger =
 white : Options.Property c m
 white =
     Color.text Color.white
+
+black : Options.Property c m
+black =
+    Color.text Color.black
+
 
 dynamic : Int -> Model -> Options.Style Msg
 dynamic k model =
@@ -199,12 +274,6 @@ addToast f model =
 
 -- GETTERS & SETTERS
 
-changeHaveBought : ShopIngredient -> ShopIngredient -> Maybe ShopIngredient
-changeHaveBought ingrToEdit ingr =
-    if ingrToEdit == ingr then        
-        Just { ingrToEdit | haveBought = not ingrToEdit.haveBought }
-    else
-        Just ingr
 
 
 
@@ -234,6 +303,6 @@ materialButton model msg display group =
         [ Options.onClick (msg)
                     , Button.minifab
                     , Button.colored
-                    , css "margin-top" "15px"
+                    
         ]
         [ Icon.view display [ Icon.size24 ] ]   

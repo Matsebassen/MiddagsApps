@@ -35,3 +35,13 @@ cellStyle width =
     , Grid.size Grid.Desktop 12
     , Grid.size Grid.Phone 4
     ]
+
+shopListCellStyle : String -> String -> List (Options.Style a)
+shopListCellStyle height width =
+    [ css "text-sizing" "border-box"
+    , css "width" (width ++ "px")
+    , css "height" (height ++ "px")
+    , Grid.size Grid.Tablet 6
+    , Grid.size Grid.Desktop 12
+    , Grid.size Grid.Phone 4
+    ]
