@@ -22,6 +22,7 @@ import Material.Snackbar as Snackbar
 import Material.Textfield as Textfield
 import Material.Typography as Typo
 
+
 --MODEL
 
 
@@ -34,7 +35,8 @@ type alias Model =
     , mdl : Material.Model
     }
 
-type Msg 
+
+type Msg
     = AddIngredient
     | ChangeHaveBought ShopIngredient
     | SearchText String
@@ -42,15 +44,17 @@ type Msg
     | EditDesc String
     | SaveDescInDb
     | GetShoppingList Time
-    | SearchResult (Result Http.Error (List ShopIngredient))    
+    | SearchResult (Result Http.Error (List ShopIngredient))
     | KeyDown Int
     | Raise Int
     | AddToast String
     | Snackbar (Snackbar.Msg Int)
     | Mdl (Material.Msg Msg)
 
+
 type alias Mdl =
     Material.Model
+
 
 
 --INIT
@@ -60,44 +64,55 @@ init : Model
 init =
     Model "" [] (ShopIngredient "" "" False 0) -1 Snackbar.model Material.model
 
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         AddIngredient ->
-            ({ model | searchText = ""} ,  addShopIngredient (ShopIngredient model.searchText "" False 0 ) SearchResult )
+            ( { model | searchText = "" }, addShopIngredient (ShopIngredient model.searchText "" False 0) SearchResult )
 
         ChangeHaveBought ingredient ->
-            (  model, editShopIngredient ingredient SearchResult)
+            ( model, editShopIngredient ingredient SearchResult )
 
         SearchText searchTxt ->
-            ( { model | searchText = searchTxt }, Cmd.none )   
-        
+            ( { model | searchText = searchTxt }, Cmd.none )
+
         SetCurrentIngredient ingredient ->
-        ( { model | currentIngredient = ingredient}, Cmd.none)
+            ( { model | currentIngredient = ingredient }, Cmd.none )
 
         EditDesc newDesc ->
-        ( {model | currentIngredient = (let currIngr = model.currentIngredient in {currIngr | desc = newDesc}) } , Cmd.none)
+            ( { model
+                | currentIngredient =
+                    (let
+                        currIngr =
+                            model.currentIngredient
+                     in
+                        { currIngr | desc = newDesc }
+                    )
+              }
+            , Cmd.none
+            )
 
         SaveDescInDb ->
-        (model, editShopIngredient model.currentIngredient SearchResult)        
+            ( model, editShopIngredient model.currentIngredient SearchResult )
 
         GetShoppingList time ->
-            ( model, getShoppingList SearchResult)
+            ( model, getShoppingList SearchResult )
 
         SearchResult (Ok shopIngredients) ->
             ( { model | ingredients = shopIngredients }, Cmd.none )
 
         SearchResult (Err error) ->
-            update (AddToast (handleHttpError error)) model        
+            update (AddToast (handleHttpError error)) model
 
         KeyDown key ->
             if key == 13 then
-                ( { model | searchText = ""}, addShopIngredient (ShopIngredient model.searchText "" False 0 ) SearchResult )
+                ( { model | searchText = "" }, addShopIngredient (ShopIngredient model.searchText "" False 0) SearchResult )
             else
-                ( model, Cmd.none )                 
+                ( model, Cmd.none )
 
         Raise k ->
-            { model | raised = k } ! []                
+            { model | raised = k } ! []
 
         AddToast message ->
             addToast (Snackbar.toast 1 message) model
@@ -108,12 +123,14 @@ update msg model =
                 |> map2nd (Cmd.map Snackbar)
 
         Mdl msg_ ->
-            Material.update Mdl msg_ model        
+            Material.update Mdl msg_ model
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Time.every 3000 GetShoppingList        
+    Time.every 3000 GetShoppingList
+
+
 
 --VIEW
 
@@ -129,52 +146,56 @@ view model =
             , materialButton model AddIngredient "add_shopping_cart" 2
             ]
         , List.map (ingredientCardCell model) (List.filterMap (haveBought False) model.ingredients) |> grid [ css "justify-content" "center" ]
-        , hr[] []
+        , hr [] []
         , text "Recently used"
-        , List.map (ingredientCardCell model) (List.filterMap (haveBought True) model.ingredients)  |> grid [ css "justify-content" "center" ]
+        , List.map (ingredientCardCell model) (List.filterMap (haveBought True) model.ingredients) |> grid [ css "justify-content" "center" ]
         , dialogView model
         , Snackbar.view model.snackbar |> Html.map Snackbar
         ]
 
-ingredientCardCell : Model -> ShopIngredient -> Material.Grid.Cell Msg
-ingredientCardCell model ingredient=
-    let
-      height = "128"
 
-      width = "116"      
-    in      
+ingredientCardCell : Model -> ShopIngredient -> Material.Grid.Cell Msg
+ingredientCardCell model ingredient =
+    let
+        height =
+            "128"
+
+        width =
+            "116"
+    in
         cell (Css.shopListCellStyle height width)
             [ cardView model ingredient height
             ]
 
 
 cardView : Model -> ShopIngredient -> String -> Html Msg
-cardView model ingredient height = 
+cardView model ingredient height =
     div []
-    [Card.view
-    [ css "height" (height ++ "px")
-    , css "width" (height ++ "px")
-    , dynamic ingredient.id model        
-    ]
-        [ 
-        Card.title 
-            [Options.onClick (ChangeHaveBought {ingredient | haveBought = not ingredient.haveBought })
-            ,css "height" "100px"
-            , backgroundColor ingredient.haveBought True            
-            ] 
-            [ Card.subhead [ white, Typo.subhead ] [ text ingredient.name ] ] 
-        , Card.media
-            [ Card.border 
-            , backgroundColor ingredient.haveBought False
-            , Options.onClick (SetCurrentIngredient ingredient)            
-            , Dialog.openOn "click"
-            , css "height" "28px"            
-            , Typo.subhead
-            , black
-            ]            
-            [ text ingredient.desc]
-        ]    
-    ]
+        [ Card.view
+            [ css "height" (height ++ "px")
+            , css "width" (height ++ "px")
+            , dynamic ingredient.id model
+            ]
+            [ Card.title
+                [ Options.onClick (ChangeHaveBought { ingredient | haveBought = not ingredient.haveBought })
+                , css "height"
+                    "100px"
+                  --, backgroundColor ingredient.haveBought True
+                , backgroundColor "A" ingredient.haveBought
+                ]
+                [ Card.subhead [ white, Typo.subhead ] [ text ingredient.name ] ]
+            , Card.media
+                [ Card.border
+                , Color.background (Color.white)
+                , Options.onClick (SetCurrentIngredient ingredient)
+                , Dialog.openOn "click"
+                , css "height" "28px"
+                , Typo.subhead
+                , black
+                ]
+                [ text ingredient.desc ]
+            ]
+        ]
 
 
 dialogView : Model -> Html Msg
@@ -203,32 +224,28 @@ dialogView model =
 
 -- HELPERS
 
-backgroundColor : Bool -> Bool -> Options.Property c m
-backgroundColor haveBought isTitle =
-    let 
-        cardColor = 
-            if (haveBought) then
-                Color.Teal        
-            else    
-                Color.Red
-        
-        spectrum =
-            if (isTitle) then
-                Color.S500
-            else
-                Color.S300
 
+backgroundColor : String -> Bool -> Options.Property c m
+backgroundColor firstCharacter haveBought =
+    let
+        url =
+            if (haveBought) then
+                "https://middagsappbilder.blob.core.windows.net/middag/" ++ firstCharacter ++ "-true.png"
+            else
+                "https://middagsappbilder.blob.core.windows.net/middag/" ++ firstCharacter ++ "-false.png"
     in
-        Color.background (Color.color cardColor spectrum)        
+        css "background" ("url('" ++ url ++ "') center / cover")
 
 
 onKeyDown : (Int -> msg) -> Attribute msg
 onKeyDown tagger =
     on "keydown" (JsonD.map tagger keyCode)
 
+
 white : Options.Property c m
 white =
     Color.text Color.white
+
 
 black : Options.Property c m
 black =
@@ -247,13 +264,14 @@ dynamic k model =
     ]
         |> Options.many
 
+
 haveBought : Bool -> ShopIngredient -> Maybe ShopIngredient
 haveBought haveBought ingredient =
-  if ingredient.haveBought == haveBought then
-    Just ingredient
+    if ingredient.haveBought == haveBought then
+        Just ingredient
+    else
+        Nothing
 
-  else
-    Nothing
 
 addToast : Snackbar.Contents Int -> Model -> ( Model, Cmd Msg )
 addToast f model =
@@ -272,12 +290,10 @@ addToast f model =
         )
 
 
+
 -- GETTERS & SETTERS
-
-
-
-
 -- MATERIAL UI
+
 
 materialInput : String -> (String -> Msg) -> Model -> String -> Int -> Html Msg
 materialInput placeHolder msg model defValue group =
@@ -295,14 +311,14 @@ materialInput placeHolder msg model defValue group =
             []
         ]
 
+
 materialButton : Model -> Msg -> String -> Int -> Html Msg
 materialButton model msg display group =
-        Button.render Mdl
-        [3, group ]       
+    Button.render Mdl
+        [ 3, group ]
         model.mdl
         [ Options.onClick (msg)
-                    , Button.minifab
-                    , Button.colored
-                    
+        , Button.minifab
+        , Button.colored
         ]
-        [ Icon.view display [ Icon.size24 ] ]   
+        [ Icon.view display [ Icon.size24 ] ]

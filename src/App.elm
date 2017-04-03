@@ -29,7 +29,7 @@ type alias Mdl =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model 2 Material.model AddDinner.init SearchDinner.init ShoppingList.init, Cmd.none )
+    update (ShoppingListMsg (ShoppingList.GetShoppingList 0)) (Model 2 Material.model AddDinner.init SearchDinner.init ShoppingList.init)
 
 
 
@@ -75,7 +75,7 @@ update msg model =
                     ShoppingList.update m model.shoppingListModel
             in
                 { model | shoppingListModel = subMdl }
-                    ! [ Cmd.map ShoppingListMsg subCmd ]                    
+                    ! [ Cmd.map ShoppingListMsg subCmd ]
 
 
 
@@ -87,6 +87,7 @@ subscriptions model =
     case model.selectedTab of
         2 ->
             Sub.map ShoppingListMsg (ShoppingList.subscriptions model.shoppingListModel)
+
         _ ->
             Sub.none
 
@@ -102,7 +103,7 @@ view model =
         [ Layout.onSelectTab SelectTab
         ]
         { header = [ h2 [ style [ ( "padding", "0rem" ) ] ] [ text "Middag" ] ]
-        , drawer = [materialFlatButton model "Search" 0, materialFlatButton model "Add Dinner" 1, materialFlatButton model "Shopping List" 2 ]
+        , drawer = [ materialFlatButton model "Search" 0, materialFlatButton model "Add Dinner" 1, materialFlatButton model "Shopping List" 2 ]
         , tabs = ( [ text "Search", text "Add Dinner", text "Shopping List" ], [ Color.background (Color.color Color.Teal Color.S600) ] )
         , main = [ viewBody model ]
         }
@@ -127,7 +128,7 @@ viewBody model =
             div []
                 [ br [] []
                 , Html.map ShoppingListMsg <| ShoppingList.view model.shoppingListModel
-                ]        
+                ]
 
         _ ->
             div []
@@ -135,15 +136,15 @@ viewBody model =
                 , Html.map ShoppingListMsg <| ShoppingList.view model.shoppingListModel
                 ]
 
+
 materialFlatButton : Model -> String -> Int -> Html Msg
 materialFlatButton model butTxt tabNo =
-    Button.render Mdl 
-        [tabNo] 
+    Button.render Mdl
+        [ tabNo ]
         model.mdl
         [ Button.colored
         , Button.ripple
         , Options.onClick (SelectTab tabNo)
         , css "margin-top" "20px"
         ]
-        [ text butTxt]
-
+        [ text butTxt ]
