@@ -180,18 +180,16 @@ cardView model ingredient height =
                 [ Options.onClick (ChangeHaveBought { ingredient | haveBought = not ingredient.haveBought })
                 , css "height"
                     "100px"
-                  --, backgroundColor ingredient.haveBought True
-                , backgroundColor "A" ingredient.haveBought
+                , backgroundColor (String.slice 0 1 (String.toLower ingredient.name)) ingredient.haveBought
                 ]
-                [ Card.subhead [ white, Typo.subhead ] [ text ingredient.name ] ]
+                [ Card.subhead [ white, Typo.subhead, Typo.nowrap, css "margin" "0 0 -10px -12px" ] [ text ingredient.name ] ]
             , Card.media
                 [ Card.border
-                , Color.background (Color.white)
+                , Color.background (Color.color Color.Grey Color.S300)
                 , Options.onClick (SetCurrentIngredient ingredient)
                 , Dialog.openOn "click"
                 , css "height" "28px"
                 , Typo.subhead
-                , black
                 ]
                 [ text ingredient.desc ]
             ]
