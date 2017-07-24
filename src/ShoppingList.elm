@@ -131,7 +131,6 @@ subscriptions model =
     Time.every 3000 GetShoppingList
 
 
-
 --VIEW
 
 

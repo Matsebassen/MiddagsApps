@@ -51,7 +51,10 @@ update msg model =
             Material.update Mdl msg_ model
 
         SelectTab num ->
-            { model | selectedTab = num } ! []
+            if ( num == 2) then
+                update (ShoppingListMsg (ShoppingList.GetShoppingList 0)) ({ model | selectedTab = num })
+            else
+                { model | selectedTab = num } ! []            
 
         AddDinnerMsg m ->
             let
