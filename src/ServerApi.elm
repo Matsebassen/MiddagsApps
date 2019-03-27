@@ -29,6 +29,16 @@ type alias ShopIngredient =
     , id : Int
     }
 
+type alias TrineDinner = 
+    { name : String
+    , url : String
+    , tags : String
+    , portions : String
+    , picUrl : String
+    , id : Int
+    , ingredients : List Ingredient
+    }
+
 
 
 type IngredientMember
@@ -59,12 +69,19 @@ getRandomDinner msg =
 
         request =
             Http.get url (JsonD.list dinnerDecoder)
-
-        --request =
-        --    Http.get url dinnerDecoder
     in
         Http.send msg request
 
+getTrineDinner : String -> (Result Http.Error (TrineDinner) -> msg) -> Cmd msg
+getTrineDinner trineUrl msg =
+    let
+        url =
+            webServiceURl ++ "GetTrineDinner"
+
+        request =
+            Http.post url (Http.jsonBody (Encode.string trineUrl)) (trineDinnerDecoder) 
+    in
+        Http.send msg request
 
 addNewDinner : Dinner -> List Ingredient -> (Result Http.Error String -> msg) -> Cmd msg
 addNewDinner dinner ingredients msg =
@@ -180,6 +197,17 @@ dinnerDecoder =
         (JsonD.field "picUrl" JsonD.string)
         (JsonD.field "id" JsonD.int)
 
+trineDinnerDecoder : JsonD.Decoder TrineDinner 
+trineDinnerDecoder =
+    JsonD.map7 TrineDinner
+        (JsonD.field "name" JsonD.string)
+        (JsonD.field "url" JsonD.string)
+        (JsonD.field "tags" JsonD.string)
+        (JsonD.field "portions" JsonD.string)
+        (JsonD.field "picUrl" JsonD.string)    
+        (JsonD.field "id" JsonD.int)    
+        (JsonD.field "ingredients" (JsonD.list ingredientDecoder))
+
 
 ingredientDecoder : JsonD.Decoder Ingredient
 ingredientDecoder =
@@ -207,7 +235,7 @@ dinnerEncoder dinner ingredients =
         , ( "picUrl", Encode.string dinner.picUrl )
         , ( "id", Encode.int dinner.id )
         , ( "ingredients", Encode.list <| List.map ingredientEncoder ingredients )
-        ]
+        ]   
 
 
 ingredientEncoder : Ingredient -> Encode.Value

@@ -53,6 +53,7 @@ update msg model =
         SelectTab num ->
             if ( num == 2) then
                 update (ShoppingListMsg (ShoppingList.GetShoppingList 0)) ({ model | selectedTab = num })
+                --update (Mdl Layout.ToggleDrawer) model
             else
                 { model | selectedTab = num } ! []            
 

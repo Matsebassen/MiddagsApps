@@ -1,6 +1,6 @@
 module AddDinner exposing (..)
 
-import ServerApi exposing (Dinner, Ingredient, IngredientMember, DinnerMember, getRandomDinner, addNewDinner, handleHttpError)
+import ServerApi exposing (Dinner, TrineDinner, Ingredient, IngredientMember, DinnerMember, getRandomDinner, addNewDinner, getTrineDinner, handleHttpError)
 import Css as Css exposing (..)
 import Html exposing (..)
 import Html.Events exposing (onClick, onInput, keyCode, on)
@@ -37,6 +37,7 @@ type alias Model =
     , inputIngredients : String
     , ingrCounter : Int
     , waiting : Bool
+    , showImportTrine : String
     , snackbar : Snackbar.Model Int
     , mdl : Material.Model
     }
@@ -46,6 +47,8 @@ type Msg
     = JsonResponse (Result Http.Error String)
     | AddDinner
     | Mdl (Material.Msg Msg)
+    | ImportTrineDinner
+    | ImportResults (Result Http.Error (TrineDinner))
     | EditDinner DinnerMember String
     | EditIngredient IngredientMember Ingredient String
     | AddIngredient
@@ -67,6 +70,7 @@ type MatrButton
     | MiniFabAccent
     | DiagOpen
     | Normal
+    | Trine
 
 
 --INIT
@@ -74,7 +78,7 @@ type MatrButton
 
 init : Model
 init =
-    Model (Dinner "" "" "" "" "" 0) [ (Ingredient "" "" "" 1) ] "" 2 False Snackbar.model Material.model
+    Model (Dinner "" "" "" "" "" 0) [ (Ingredient "" "" "" 1) ] "" 2 False "hidden" Snackbar.model Material.model
 
 
 
@@ -88,13 +92,22 @@ update msg model =
             ( { model | waiting = True }, addNewDinner model.dinner model.ingredients JsonResponse )
 
         JsonResponse (Ok response) ->
-            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "" 0) [ (Ingredient "" "" "" 1) ] "" 2 False Snackbar.model model.mdl)
+            addToast (Snackbar.toast 1 response) (Model (Dinner "" "" "" "" "" 0) [ (Ingredient "" "" "" 1) ] "" 2 False "hidden" Snackbar.model model.mdl)
 
         JsonResponse (Err error) ->
             update (AddToast (handleHttpError error)) model
 
+        ImportTrineDinner ->
+            ( { model | waiting = True }, getTrineDinner (getUrl model.dinner) ImportResults )
+
+        ImportResults (Ok dinnerFound) ->
+            ( { model | dinner = (setTrineDinner dinnerFound), ingredients = dinnerFound.ingredients, waiting = False }, Cmd.none )
+
+        ImportResults (Err error) ->
+            update (AddToast (handleHttpError error)) model            
+
         EditDinner memberType newValue ->
-            ( { model | dinner = editDinnerMember memberType newValue model.dinner }, Cmd.none )
+            ( { model | dinner = editDinnerMember memberType newValue model.dinner, showImportTrine = isTrineUrl memberType newValue model.showImportTrine }, Cmd.none )
 
         EditIngredient memberType ingredient name ->
             ( { model | ingredients = (List.filterMap (editTableIngredientInList memberType name ingredient) model.ingredients) }, Cmd.none )
@@ -168,7 +181,8 @@ dinnerView model =
         , dinnerInputMaterial "Tags" (EditDinner ServerApi.Tags) model model.dinner.tags False 3
         , dinnerInputMaterial "Picture Url (optional)" (EditDinner ServerApi.PicUrl) model model.dinner.picUrl True 4
         , dinnerInputMaterial "Url (optional)" (EditDinner ServerApi.Url) model model.dinner.url True 5
-        ]
+        , materialButton model Trine ImportTrineDinner "Import Trine Dinner" 6           
+        ]        
 
 
 dinnerViewCard : Model -> Html Msg
@@ -352,7 +366,7 @@ materialButton model matrButton msg display group =
                     , Options.onClick msg
                     , css "margin" "40px 12px"                        
                     ]
-                    , [ text display ])
+                    , [ text display ])                         
 
                 MiniFab ->                    
                     ([3, group ]
@@ -385,6 +399,17 @@ materialButton model matrButton msg display group =
                     , css "margin-top" "-8px"        
                     ]
                     ,[ Icon.view display [ Icon.size36 ] ])
+
+                Trine -> 
+                    ([6, group ]
+                    ,[                   
+                    Button.raised
+                    , Button.colored
+                    , Button.ripple  
+                    , Options.onClick msg
+                    , css "visibility" model.showImportTrine                   
+                    ]
+                    , [text display])                       
     in         
         Button.render Mdl
         idGroup        
@@ -458,6 +483,15 @@ getIngrPart array partNo =
     (fromJust (Array.get partNo (Array.fromList array)))
 
 
+getUrl : Dinner -> String
+getUrl dinner = 
+    dinner.url
+
+
+setTrineDinner : TrineDinner -> Dinner
+setTrineDinner trineDinner = 
+    Dinner trineDinner.name trineDinner.url trineDinner.tags trineDinner.portions trineDinner.picUrl trineDinner.id    
+
 removeIngredientFromList : Ingredient -> Int -> Ingredient -> Maybe Ingredient
 removeIngredientFromList ingrToCheck nrOfIngredients ingr =
     if ingrToCheck == ingr && nrOfIngredients > 1 then
@@ -504,3 +538,24 @@ editDinnerMember memberType newValue dinner =
 
         ServerApi.PicUrl ->
             { dinner | picUrl = newValue }
+
+isTrineUrl : DinnerMember -> String -> String -> String
+isTrineUrl memberType newValue currentShowTrine =
+    case memberType of
+        ServerApi.DinnerName ->
+            currentShowTrine
+
+        ServerApi.Url ->
+            if (String.contains "trinesmatblogg.no" newValue) then
+                "visible"
+            else
+                "hidden"
+
+        ServerApi.Tags ->
+            currentShowTrine
+
+        ServerApi.Portions ->
+            currentShowTrine
+
+        ServerApi.PicUrl ->
+            currentShowTrine
